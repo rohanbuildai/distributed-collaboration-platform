@@ -1,0 +1,16 @@
+config:
+  target: "http://localhost:3000"
+
+  phases:
+    - duration: 10
+      arrivalRate: 20
+
+scenarios:
+  - name: "User Registration"
+    flow:
+      - post:
+          url: "/api/v1/auth/register"
+          json:
+            name: "Load Test User"
+            email: "load-{{ $randomNumber(1, 100000000) }}@example.com"
+            password: "StrongPassword123!"

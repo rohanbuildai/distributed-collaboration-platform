@@ -1,4 +1,5 @@
 const pool = require("../../../config/database");
+const AppError = require("../../../utils/errors/appError");
 
 const findUserByEmail = async (email) => {
     const query = `
@@ -28,9 +29,23 @@ const createUser = async ({ name, email, passwordHash }) => {
 
     const values = [ name , email , passwordHash ] ;
 
-    const result = await pool.query(query, values) ;
+    try {
+        const result = await pool.query(query, values) ;
 
-    return result.rows[0];
+        return result.rows[0];
+    } catch (error) {
+        if (
+            error.code === "23505" &&
+            error.constraint === "users_email_unique"
+        ) {
+            throw new AppError(
+                "Email already registered",
+                409
+            );
+        }
+
+        throw error;
+    }
 };
 
 module.exports = {

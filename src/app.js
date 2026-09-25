@@ -1,6 +1,7 @@
 const express = require("express");
 
 const mainRoute = require("../Routes/auth/auth") ;
+const errorMiddleware = require("../src/middleware/errorMiddleware") ;
 
 const app = express();
 
@@ -14,5 +15,6 @@ app.get("/api/v1/health", (req, res) => {
 });
 
 app.use("/api/v1" , mainRoute ) ;
+app.use( errorMiddleware ) ;
 
 module.exports = app;
