@@ -3,10 +3,9 @@ const bcrypt = require("bcrypt");
 const authModel = require("../models/authModel");
 
 const registerUser = async ({ name, email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
 
     const existingUser = await authModel.findUserByEmail(
-        normalizedEmail
+        email
     );
 
     if (existingUser) {
@@ -18,8 +17,8 @@ const registerUser = async ({ name, email, password }) => {
     const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await authModel.createUser({
-        name: name.trim(),
-        email: normalizedEmail,
+        name ,
+        email ,
         passwordHash
     });
 
