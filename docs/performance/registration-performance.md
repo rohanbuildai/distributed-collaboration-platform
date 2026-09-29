@@ -151,3 +151,155 @@ No unexpected server errors occurred.
 
 The PostgreSQL unique constraint remains the authoritative
 mechanism preventing duplicate users.
+
+## 4. Rate Limiting
+
+### Objective
+
+Protect the registration endpoint from excessive requests
+before they reach expensive operations such as password hashing
+and database access.
+
+### Initial Design
+
+The registration endpoint uses an in-memory fixed-window
+rate limiter.
+
+Configuration:
+
+- Limit: 10 requests
+- Window: 60 seconds
+- Rate-limit key: Client IP
+- Storage: In-memory JavaScript `Map`
+- Exceeded limit response: HTTP 429
+
+Request flow:
+
+    Client
+      ↓
+    Rate Limiter
+      ↓
+    Validation
+      ↓
+    Controller
+      ↓
+    Service
+      ↓
+    bcrypt
+      ↓
+    PostgreSQL
+
+The rate limiter is intentionally placed before validation,
+business logic, password hashing, and database operations.
+
+### Load Test Configuration
+
+- Load testing tool: Artillery
+- Target arrival rate: 20 requests/second
+- Duration: 10 seconds
+- Total requests: 200
+- Client: Single local client/IP
+- Endpoint: `POST /api/v1/auth/register`
+
+### Results
+
+| Response | Count |
+|---|---:|
+| 201 Created | 10 |
+| 429 Too Many Requests | 190 |
+| 5xx errors | 0 |
+| Total | 200 |
+
+### Response Latency
+
+#### Requests Allowed Through Rate Limiter
+
+| Metric | Result |
+|---|---:|
+| Mean | 237.5 ms |
+| p50 | 232.8 ms |
+| p95 | 242.3 ms |
+| p99 | 242.3 ms |
+| Maximum | 273 ms |
+
+#### Requests Rejected by Rate Limiter
+
+| Metric | Result |
+|---|---:|
+| Mean | 0.6 ms |
+| p50 | 1 ms |
+| p95 | 1 ms |
+| p99 | 1 ms |
+| Maximum | 1 ms |
+
+### Observation
+
+The rate limiter allowed 10 requests from the test client's IP
+during the configured window and rejected the remaining 190
+requests with HTTP 429.
+
+Rejected requests completed significantly faster than successful
+registration requests because they were stopped before reaching
+password hashing and database operations.
+
+The test produced zero 5xx responses.
+
+The observed Artillery request rate of approximately 39 requests/sec
+must not be interpreted as application capacity. Most requests were
+rejected immediately by the rate limiter.
+
+### Retry-After
+
+The rate limiter returns a `Retry-After` response header when the
+request limit is exceeded.
+
+This communicates the approximate number of seconds the client
+should wait before retrying.
+
+Example:
+
+    HTTP/1.1 429 Too Many Requests
+    Retry-After: 47
+
+### Current Limitations
+
+The current rate limiter uses process-local memory.
+
+Therefore:
+
+- Rate-limit state is not shared between application instances.
+- Horizontal scaling would create independent rate-limit state
+  on each application instance.
+- IP records can remain in memory after their windows expire.
+- The implementation currently uses a fixed-window algorithm.
+
+These limitations are currently accepted because the application
+runs as a single instance.
+
+A shared rate-limit store such as Redis can be evaluated when
+horizontal scaling becomes an actual system requirement.
+
+## 4. Database Failure and Recovery
+
+### Failure Test
+
+PostgreSQL was intentionally made unavailable while the
+application remained running.
+
+A valid registration request was then sent.
+
+### Result
+
+The database connection failed with `ECONNREFUSED`.
+
+The server returned:
+
+`500 Internal Server Error`
+
+The client received only:
+
+```json
+{
+  "success": false,
+  "message": "Internal server error"
+}
