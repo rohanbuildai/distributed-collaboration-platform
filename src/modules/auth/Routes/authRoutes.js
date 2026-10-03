@@ -11,4 +11,14 @@ router.post("/register", rateLimiter({
         maxRequests: 10
     }) , authValidations.validateRegisterInput , authController.registerUser);
 
+router.post(
+    "/login",
+    rateLimiter({
+        windowMs: 60 * 1000,
+        maxRequests: 10
+    }),
+    authValidations.validateLoginInput,
+    authController.loginUser
+);
+
 module.exports = router;

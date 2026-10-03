@@ -3,7 +3,6 @@ const validateRegisterInput = (req, res, next) => {
 
     const errors = {};
 
-    // Name validation
     if (!name || typeof name !== "string") {
         errors.name = "Name is required";
     } else {
@@ -16,7 +15,6 @@ const validateRegisterInput = (req, res, next) => {
         }
     }
 
-    // Email validation
     if (!email || typeof email !== "string") {
         errors.email = "Email is required";
     } else {
@@ -31,7 +29,6 @@ const validateRegisterInput = (req, res, next) => {
         }
     }
 
-    // Password validation
     if (!password || typeof password !== "string") {
         errors.password = "Password is required";
     } else {
@@ -42,7 +39,6 @@ const validateRegisterInput = (req, res, next) => {
         }
     }
 
-    // Return validation errors
     if (Object.keys(errors).length > 0) {
         return res.status(400).json({
             success: false,
@@ -51,7 +47,6 @@ const validateRegisterInput = (req, res, next) => {
         });
     }
 
-    // Normalize input
     req.body.name = name;
     req.body.email = email;
     req.body.password = password;
@@ -59,6 +54,45 @@ const validateRegisterInput = (req, res, next) => {
     next();
 };
 
+const validateLoginInput = (req, res, next) => {
+    let {email, password} = req.body ;
+
+    const errors = {} ;
+
+    if (!email || typeof email !== "string") {
+        errors.email = "Email is required";
+    } else {
+        email = email.trim().toLowerCase();
+
+        const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+        if (!EMAIL_REGEX.test(email)) {
+            errors.email = "Enter a valid email address";
+        } else if (email.length > 255) {
+            errors.email = "Email should be less than 255 characters";
+        }
+    }
+
+    if (!password || typeof password !== "string") {
+        errors.password = "Password is required";
+    }
+
+    if (Object.keys(errors).length > 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Validation failed",
+            errors
+        });
+    }
+
+    req.body.email = email;
+    req.body.password = password;
+
+    next();
+
+}
+
 module.exports = {
-    validateRegisterInput
+    validateRegisterInput ,
+    validateLoginInput
 };

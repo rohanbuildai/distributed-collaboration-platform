@@ -21,6 +21,28 @@ const registerUser = async (req, res, next) => {
     }
 };
 
+const loginUser = async (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await authService.loginUser({
+            email,
+            password
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                user
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 module.exports = {
-    registerUser
+    registerUser ,
+    loginUser
 };
