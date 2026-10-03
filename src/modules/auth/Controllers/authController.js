@@ -1,4 +1,4 @@
-const authService = require("../Services/authService");
+const authService = require("../Services/authService"); 
 
 const registerUser = async (req, res, next) => {
     try {
@@ -41,8 +41,14 @@ const loginUser = async (req, res, next) => {
     }
 };
 
-
+const getCurrentUser = (req, res) => {
+    return res.status(200).json({
+        success: true,
+        userId: req.user.id
+    });
+};
 module.exports = {
     registerUser ,
-    loginUser
+    loginUser ,
+    getCurrentUser
 };

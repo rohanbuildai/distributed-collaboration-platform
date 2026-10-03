@@ -50,5 +50,5 @@ const createUser = async ({ name, email, passwordHash }) => {
 
 module.exports = {
     findUserByEmail,
-    createUser
+    createUser ,
 };
