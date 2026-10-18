@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const pool = require("../../../config/database") ;
+const crypto = require("crypto");
 
 const authModel = require("../models/authModel");
 const { generateAccessToken } = require("../../../utils/Tokens/accessTokenUtils") ;
@@ -61,6 +62,8 @@ const loginUser = async ({email, password}) => {
 
     const client = await pool.connect();
 
+    const familyId = crypto.randomUUID();
+
     try {
         await client.query("BEGIN");
 
@@ -69,7 +72,8 @@ const loginUser = async ({email, password}) => {
             {
                 userId: existingUser.id,
                 tokenHash: refreshTokenHash,
-                expiresAt
+                expiresAt ,
+                familyId
             }
         );
 

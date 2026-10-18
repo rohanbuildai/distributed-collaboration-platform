@@ -1,10 +1,20 @@
-const requests = new Map();
+const cleanupExpiredRequests = require("../utils/requests/cleanupExpiredRequests");
 
 const rateLimit = (options = {}) => {
     const {
         windowMs = 60 * 1000,
-        maxRequests = 10
+        maxRequests = 10 ,
+        cleanupIntervalMs = 60 * 1000
     } = options;
+
+    const requests = new Map();
+
+    const cleanupInterval = setInterval(
+        () => cleanupExpiredRequests(requests),
+        cleanupIntervalMs
+    );
+
+    cleanupInterval.unref();
 
     return (req, res, next) => {
         const clientIp = req.ip;
@@ -16,7 +26,8 @@ const rateLimit = (options = {}) => {
         if (!record) {
             requests.set(clientIp, {
                 count: 1,
-                windowStart: currentTime
+                windowStart: currentTime ,
+                expiresAt : currentTime + windowMs
             });
 
             return next();
@@ -29,7 +40,8 @@ const rateLimit = (options = {}) => {
         if (windowExpired) {
             requests.set(clientIp, {
                 count: 1,
-                windowStart: currentTime
+                windowStart: currentTime ,
+                expiresAt : currentTime + windowMs
             });
 
             return next();

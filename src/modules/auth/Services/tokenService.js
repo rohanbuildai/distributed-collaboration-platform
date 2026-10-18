@@ -1,4 +1,5 @@
 const pool = require("../../../config/database");
+const AppError = require("../../../utils/errors/appError");
 
 const refreshTokenModel = require("../Models/resfreshTokenModel");
 
@@ -22,8 +23,11 @@ const refreshAccessToken = async (refreshTokenValue) => {
 
     const client = await pool.connect();
 
+    let transactionOpen = false ;
+
     try {
         await client.query("BEGIN");
+        transactionOpen = true ;
 
         const storedToken =
             await refreshTokenModel.findRefreshTokenForUpdate(
@@ -32,15 +36,21 @@ const refreshAccessToken = async (refreshTokenValue) => {
             );
 
         if (!storedToken) {
-            const error = new Error("Invalid refresh token");
-            error.statusCode = 401;
-            throw error;
+            await client.query("ROLLBACK") ;
+            transactionOpen = false ;
+            throw new AppError("Invalid refresh token", 401);
         }
 
         if (storedToken.revoked_at) {
-            const error = new Error("Invalid refresh token");
-            error.statusCode = 401;
-            throw error;
+            await refreshTokenModel.revokeRefreshTokenFamily(
+                client,
+                storedToken.family_id
+            );
+
+            await client.query("COMMIT");
+            transactionOpen = false;
+
+            throw new AppError("Invalid refresh token", 401);
         }
 
         if (new Date(storedToken.expires_at) <= new Date()) {
@@ -69,7 +79,8 @@ const refreshAccessToken = async (refreshTokenValue) => {
             {
                 userId: storedToken.user_id,
                 tokenHash: newRefreshTokenHash,
-                expiresAt: newExpiresAt
+                expiresAt: newExpiresAt,
+                familyId: storedToken.family_id
             }
         );
 
@@ -77,13 +88,25 @@ const refreshAccessToken = async (refreshTokenValue) => {
             generateAccessToken(storedToken.user_id);
 
         await client.query("COMMIT");
+        transactionOpen = false ;
 
         return {
             accessToken,
             refreshToken: newRefreshTokenValue
         };
     } catch (error) {
-        await client.query("ROLLBACK");
+        if (transactionOpen) {
+            try {
+                await client.query("ROLLBACK");
+            } catch (rollbackError) {
+
+                console.error(
+                    "Refresh-token transaction rollback failed",
+                    rollbackError
+                );
+            }
+        }
+
         throw error;
     } finally {
         client.release();
