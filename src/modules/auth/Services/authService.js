@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const pool = require("../../../config/database") ;
 const crypto = require("crypto");
 
-const authModel = require("../models/authModel");
+const authModel = require("../Models/authModel");
 const { generateAccessToken } = require("../../../utils/Tokens/accessTokenUtils") ;
 const { generateRefreshToken,hashRefreshToken } = require("../../../utils/Tokens/refreshTokenUtils") ;
 const refreshTokenModel = require("../Models/resfreshTokenModel") ;
