@@ -1,0 +1,16 @@
+config:
+  target: "http://localhost:3000"
+
+  phases:
+    - duration: 1
+      arrivalCount: 20
+
+scenarios:
+  - name: "Concurrent Same Email Registration"
+    flow:
+      - post:
+          url: "/api/v1/auth/register"
+          json:
+            name: "Concurrent User"
+            email: "race-test2354145@example.com"
+            password: "StrongPassword123!"
