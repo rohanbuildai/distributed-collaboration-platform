@@ -1,7 +1,7 @@
 const pool = require("../../../config/database");
 const AppError = require("../../../utils/errors/appError");
 
-const refreshTokenModel = require("../Models/resfreshTokenModel");
+const refreshTokenModel = require("../Models/refreshTokenModel");
 
 const {
     generateRefreshToken,
