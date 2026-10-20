@@ -1,0 +1,50 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Documents CRUD baseline"
+    - duration: 30
+      arrivalRate: 10
+      name: "Higher load"
+  defaults:
+    headers:
+      Accept: "application/json"
+      Authorization: "Bearer {{ $processEnvironment.TEST_ACCESS_TOKEN }}"
+
+scenarios:
+  - name: "Authenticated Documents CRUD"
+    flow:
+      - post:
+          url: "/api/v1/documents"
+          json:
+            title: "Artillery Load Test"
+            content: "Temporary document for CRUD testing"
+          capture:
+            - json: "$.data.id"
+              as: "documentId"
+          expect:
+            - statusCode: 201
+
+      - get:
+          url: "/api/v1/documents"
+          expect:
+            - statusCode: 200
+
+      - get:
+          url: "/api/v1/documents/{{ documentId }}"
+          expect:
+            - statusCode: 200
+
+      - patch:
+          url: "/api/v1/documents/{{ documentId }}"
+          json:
+            title: "Updated Artillery Load Test"
+            content: "Updated temporary document"
+          expect:
+            - statusCode: 200
+
+      - delete:
+          url: "/api/v1/documents/{{ documentId }}"
+          expect:
+            - statusCode: 204
