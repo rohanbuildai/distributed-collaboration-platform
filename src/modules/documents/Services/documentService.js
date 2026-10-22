@@ -5,7 +5,8 @@ const AppError = require("../../../utils/errors/appError");
 const {
     validateDocumentId,
     validateTitle,
-    validateContent
+    validateContent ,
+    validateDocumentPagination
 } = require("../Validations/documentValidations");
 
 const createDocument = async ({ ownerId, title, content }) => {
@@ -23,8 +24,37 @@ const createDocument = async ({ ownerId, title, content }) => {
     });
 };
 
-const getDocuments = async ({ ownerId }) => {
-    return documentModel.findDocumentsByOwner({ ownerId });
+const getDocuments = async ({ ownerId , limit , cursor }) => {
+
+    const pagination = validateDocumentPagination({ limit , cursor }) ;
+    const rows = await documentModel.findDocumentsByOwner({
+        ownerId ,
+        limit : pagination.limit ,
+        cursor : pagination.cursor
+    })
+
+    const hasMore = rows.length > pagination.limit ;      // if documents are available next
+    const documents =  rows.slice(0,pagination.limit) ;   // removes extra response from the object
+
+    const lastDocument = documents[documents.length - 1];  
+    const nextCursor =
+        hasMore && lastDocument
+            ? Buffer.from(
+                  JSON.stringify({
+                      updatedAt: lastDocument.updated_at,
+                      id: String(lastDocument.id)
+                  })
+              ).toString("base64")
+            : null;
+
+    return {
+        documents,
+        pagination: {
+            limit: pagination.limit,
+            hasMore,
+            nextCursor
+        }
+    };
 };
 
 const getDocument = async ({ documentId, ownerId }) => {

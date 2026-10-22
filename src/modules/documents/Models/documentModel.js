@@ -14,15 +14,28 @@ const createDocument = async ({ ownerId, title, content }) => {
     return result.rows[0];
 };
 
-const findDocumentsByOwner = async ({ ownerId }) => {
+
+const findDocumentsByOwner = async ({ ownerId, limit, cursor }) => {
     const query = `
         SELECT id, owner_id, title, content, created_at, updated_at
         FROM documents
         WHERE owner_id = $1
+          AND (
+              $2::timestamptz IS NULL
+              OR (updated_at, id) < ($2::timestamptz, $3::bigint)
+          )
         ORDER BY updated_at DESC, id DESC
+        LIMIT $4
     `;
 
-    const result = await pool.query(query, [ownerId]);
+    const values = [
+        ownerId,
+        cursor?.updatedAt ?? null,
+        cursor?.id ?? null,
+        limit + 1
+    ];
+
+    const result = await pool.query(query, values);
 
     return result.rows;
 };

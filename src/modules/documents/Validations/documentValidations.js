@@ -69,10 +69,64 @@ const validateUpdateDocument = ({ documentId, title, content }) => {
     }
 };
 
+
+const validateDocumentPagination = ({ limit, cursor }) => {
+  
+    const parsedLimit = limit === undefined ? 20 : Number(limit);
+
+    if (
+        !Number.isInteger(parsedLimit) ||
+        parsedLimit < 1 ||
+        parsedLimit > 100
+    ) {
+        throw new AppError(
+            "Limit must be an integer between 1 and 100",
+            400
+        );
+    }
+
+  
+    let parsedCursor = null;
+
+    if (cursor !== undefined) {
+        if (typeof cursor !== "string" || !cursor.trim()) {
+            throw new AppError("Invalid cursor", 400);
+        }
+
+        try {
+            const decoded = Buffer.from(cursor, "base64").toString("utf8");
+
+            parsedCursor = JSON.parse(decoded);
+        } catch {
+            throw new AppError("Invalid cursor", 400);
+        }
+
+        
+        if (
+            !parsedCursor ||
+            typeof parsedCursor !== "object" ||
+            Array.isArray(parsedCursor) ||
+            typeof parsedCursor.updatedAt !== "string" ||
+            !Number.isFinite(Date.parse(parsedCursor.updatedAt)) ||
+            typeof parsedCursor.id !== "string" ||
+            !/^[1-9]\d*$/.test(parsedCursor.id)
+        ) {
+            throw new AppError("Invalid cursor", 400);
+        }
+    }
+
+    return {
+        limit: parsedLimit,
+        cursor: parsedCursor
+    };
+};
+
+
 module.exports = {
     validateDocumentId,
     validateTitle,
     validateContent,
     validateCreateDocument,
-    validateUpdateDocument
+    validateUpdateDocument ,
+    validateDocumentPagination
 };

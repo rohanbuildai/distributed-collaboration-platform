@@ -19,15 +19,19 @@ const createDocument = async (req, res, next) => {
     }
 };
 
+
 const getDocuments = async (req, res, next) => {
     try {
-        const documents = await documentService.getDocuments({
-            ownerId: req.user.id
+        const result = await documentService.getDocuments({
+            ownerId: req.user.id,
+            limit: req.query.limit,
+            cursor: req.query.cursor
         });
 
         return res.status(200).json({
             success: true,
-            data: documents
+            data: result.documents,
+            pagination: result.pagination
         });
     } catch (error) {
         next(error);
