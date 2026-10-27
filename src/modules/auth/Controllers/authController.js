@@ -1,4 +1,9 @@
-const authService = require("../Services/authService"); 
+
+const authService = require("../Services/authService");
+
+const {
+    setAuthCookies
+} = require("../../../utils/Tokens/authCookieUtils");
 
 const registerUser = async (req, res, next) => {
     try {
@@ -12,9 +17,7 @@ const registerUser = async (req, res, next) => {
 
         return res.status(201).json({
             success: true,
-            data: {
-                user
-            }
+            data: { user }
         });
     } catch (error) {
         next(error);
@@ -25,16 +28,24 @@ const loginUser = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
-        const user = await authService.loginUser({
+        const {
+            user,
+            accessToken,
+            refreshToken
+        } = await authService.loginUser({
             email,
             password
         });
 
+        setAuthCookies(res, {
+            accessToken,
+            refreshToken
+        });
+
         return res.status(200).json({
             success: true,
-            data: {
-                user
-            }
+            message: "Login successful",
+            data: { user }
         });
     } catch (error) {
         next(error);
@@ -47,8 +58,9 @@ const getCurrentUser = (req, res) => {
         userId: req.user.id
     });
 };
+
 module.exports = {
-    registerUser ,
-    loginUser ,
+    registerUser,
+    loginUser,
     getCurrentUser
 };

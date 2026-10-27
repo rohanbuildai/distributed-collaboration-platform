@@ -4,9 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
+  },
+  "jest": {
+    "setupFiles": ["<rootDir>/tests/setup.js"],
+    "testEnvironment": "node"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +24,8 @@
   },
   "devDependencies": {
     "artillery": "^2.0.34",
-    "nodemon": "^3.1.14"
+    "jest": "^30.5.2",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.1"
   }
 }
