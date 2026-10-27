@@ -6,17 +6,15 @@ const refreshTokenModel = require("../Models/refreshTokenModel");
 const {
     generateRefreshToken,
     hashRefreshToken
-} = require("../../../utils/Tokens/refreshTokenUtils");
+} = require("../../../utils/tokens/refreshTokenUtils");
 
 const {
     generateAccessToken
-} = require("../../../utils/Tokens/accessTokenUtils");
+} = require("../../../utils/tokens/accessTokenUtils");
 
 const refreshAccessToken = async (refreshTokenValue) => {
     if (!refreshTokenValue) {
-        const error = new Error("Invalid refresh token");
-        error.statusCode = 401;
-        throw error;
+        throw new AppError("Invalid refresh token", 401);
     }
 
     const tokenHash = hashRefreshToken(refreshTokenValue);
@@ -54,9 +52,7 @@ const refreshAccessToken = async (refreshTokenValue) => {
         }
 
         if (new Date(storedToken.expires_at) <= new Date()) {
-            const error = new Error("Invalid refresh token");
-            error.statusCode = 401;
-            throw error;
+            throw new AppError("Invalid refresh token", 401);
         }
 
         const newRefreshTokenValue =

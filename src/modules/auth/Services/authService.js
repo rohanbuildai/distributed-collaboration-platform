@@ -3,9 +3,10 @@ const pool = require("../../../config/database") ;
 const crypto = require("crypto");
 
 const authModel = require("../Models/authModel");
-const { generateAccessToken } = require("../../../utils/Tokens/accessTokenUtils") ;
-const { generateRefreshToken,hashRefreshToken } = require("../../../utils/Tokens/refreshTokenUtils") ;
+const { generateAccessToken } = require("../../../utils/tokens/accessTokenUtils") ;
+const { generateRefreshToken,hashRefreshToken } = require("../../../utils/tokens/refreshTokenUtils") ;
 const refreshTokenModel = require("../Models/refreshTokenModel") ;
+const AppError = require("../../../utils/errors/appError");
 
 const registerUser = async ({ name, email, password }) => {
 
@@ -14,9 +15,7 @@ const registerUser = async ({ name, email, password }) => {
     );
 
     if (existingUser) {
-        const error = new Error("Email already registered");
-        error.statusCode = 409;
-        throw error;
+        throw new AppError("Email already registered", 409);
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -35,17 +34,13 @@ const loginUser = async ({email, password}) => {
     const existingUser = await authModel.findUserByEmail(email) ;
 
     if (!existingUser) {
-        const error = new Error("Invalid email or password") ;
-        error.statusCode = 401 ;
-        throw error ;
+        throw new AppError("Invalid email or password", 401);
     }
 
     const comparedPassword = await bcrypt.compare(password, existingUser.password_hash) ;
 
     if (!comparedPassword) {
-        const error = new Error("Invalid email or password") ;
-        error.statusCode = 401 ;
-        throw error ;
+        throw new AppError("Invalid email or password", 401);
     }
 
     const { password_hash, ...safeUser } = existingUser ;

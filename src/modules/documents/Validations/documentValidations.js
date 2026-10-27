@@ -42,40 +42,25 @@ const validateContent = ({ content }) => {
     return content;
 };
 
-const validateCreateDocument = ({ title, content }) => {
-    validateTitle({ title });
-
-    if (content !== undefined) {
-        validateContent({ content });
-    }
-};
-
-const validateUpdateDocument = ({ documentId, title, content }) => {
-    validateDocumentId({ documentId });
-
-    if (title === undefined && content === undefined) {
-        throw new AppError(
-            "Provide a title or content to update",
-            400
-        );
-    }
-
-    if (title !== undefined) {
-        validateTitle({ title });
-    }
-
-    if (content !== undefined) {
-        validateContent({ content });
-    }
-};
-
-
 const validateDocumentPagination = ({ limit, cursor }) => {
-  
-    const parsedLimit = limit === undefined ? 20 : Number(limit);
+    let parsedLimit = 20;
+
+    if (limit !== undefined) {
+        if (
+            typeof limit !== "string" ||
+            !/^\d+$/.test(limit)
+        ) {
+            throw new AppError(
+                "Limit must be an integer between 1 and 100",
+                400
+            );
+        }
+
+        parsedLimit = Number(limit);
+    }
 
     if (
-        !Number.isInteger(parsedLimit) ||
+        !Number.isSafeInteger(parsedLimit) ||
         parsedLimit < 1 ||
         parsedLimit > 100
     ) {
@@ -85,23 +70,29 @@ const validateDocumentPagination = ({ limit, cursor }) => {
         );
     }
 
-  
     let parsedCursor = null;
 
     if (cursor !== undefined) {
-        if (typeof cursor !== "string" || !cursor.trim()) {
+        if (
+            typeof cursor !== "string" ||
+            !cursor ||
+            !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(cursor)
+        ) {
             throw new AppError("Invalid cursor", 400);
         }
 
         try {
             const decoded = Buffer.from(cursor, "base64").toString("utf8");
 
+            if (Buffer.from(decoded, "utf8").toString("base64") !== cursor) {
+                throw new Error("Non-canonical Base64");
+            }
+
             parsedCursor = JSON.parse(decoded);
         } catch {
             throw new AppError("Invalid cursor", 400);
         }
 
-        
         if (
             !parsedCursor ||
             typeof parsedCursor !== "object" ||
@@ -109,7 +100,8 @@ const validateDocumentPagination = ({ limit, cursor }) => {
             typeof parsedCursor.updatedAt !== "string" ||
             !Number.isFinite(Date.parse(parsedCursor.updatedAt)) ||
             typeof parsedCursor.id !== "string" ||
-            !/^[1-9]\d*$/.test(parsedCursor.id)
+            !/^[1-9]\d*$/.test(parsedCursor.id) ||
+            !Number.isSafeInteger(Number(parsedCursor.id))
         ) {
             throw new AppError("Invalid cursor", 400);
         }
@@ -122,11 +114,10 @@ const validateDocumentPagination = ({ limit, cursor }) => {
 };
 
 
+
 module.exports = {
     validateDocumentId,
     validateTitle,
     validateContent,
-    validateCreateDocument,
-    validateUpdateDocument ,
     validateDocumentPagination
 };

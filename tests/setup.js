@@ -1,5 +1,8 @@
+
+const path = require("path");
+
 require("dotenv").config({
-    path: ".env.test",
+    path: path.resolve(__dirname, "../.env.test"),
     override: true,
     quiet: true
 });

@@ -114,6 +114,13 @@ describe("Documents API integration", () => {
         expect(response.body.data.content).toBe("Updated content");
     });
 
+    test("rejects an empty document update", async () => {
+        await agent
+            .patch(`/api/v1/documents/${documentId}`)
+            .send({})
+            .expect(400);
+    });
+
     
     test("lists the authenticated user's documents", async () => {
         const response = await agent
@@ -182,13 +189,6 @@ describe("Documents API integration", () => {
             .expect(400);
     });
 
-    test("rejects an empty document update", async () => {
-        await agent
-            .patch(`/api/v1/documents/${documentId}`)
-            .send({})
-            .expect(400);
-    });
-
     test("returns the current authenticated user's ID", async () => {
     const response = await agent
         .get("/api/v1/auth/me")
@@ -203,5 +203,44 @@ describe("Documents API integration", () => {
             .get("/api/v1/auth/me")
             .expect(401);
     });
+
+    
+    test.each(["0", "101", "1.5", "abc"])(
+        "rejects invalid pagination limit: %s",
+        async (limit) => {
+            await agent
+                .get(`/api/v1/documents?limit=${limit}`)
+                .expect(400);
+        }
+    );
+
+    test.each([
+        "not-base64!",
+        Buffer.from("{invalid-json").toString("base64"),
+        Buffer.from(
+            JSON.stringify({
+                updatedAt: "2026-01-01T00:00:00.000Z",
+                id: "0"
+            })
+        ).toString("base64")
+    ])(
+        "rejects malformed pagination cursor",
+        async (cursor) => {
+            await agent
+                .get("/api/v1/documents")
+                .query({ cursor })
+                .expect(400);
+        }
+    );
+
+    test("accepts the minimum valid pagination limit", async () => {
+        const response = await agent
+            .get("/api/v1/documents?limit=1")
+            .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.pagination.limit).toBe(1);
+    });
+
 
 }); 
