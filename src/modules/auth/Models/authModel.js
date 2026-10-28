@@ -16,6 +16,20 @@ const findUserByEmail = async (email) => {
     return result.rows[0] || null;
 };
 
+const findUserById = async (id) => {
+    const query = `
+        SELECT id, name, email, password_hash, created_at, updated_at
+        FROM users
+        WHERE id = $1
+    `;
+
+    const values = [ id ] ;
+
+    const result = await pool.query(query, values);
+
+    return result.rows[0] || null;
+};
+
 const createUser = async ({ name, email, passwordHash }) => {
     const query = `
         INSERT INTO users (
@@ -51,4 +65,5 @@ const createUser = async ({ name, email, passwordHash }) => {
 module.exports = {
     findUserByEmail,
     createUser ,
+    findUserById
 };
