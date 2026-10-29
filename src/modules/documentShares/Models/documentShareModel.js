@@ -14,6 +14,22 @@ const createDocumentShare = async ( { documentId , sharedWithUserId , permission
     return result.rows[0] ;
 }
 
+const findDocumentShare = async ({ documentId , sharedWithUserId }) => {
+    const query = `
+        SELECT id, document_id, shared_with_user_id, permission
+        FROM document_shares
+        WHERE document_id = $1
+        AND shared_with_user_id = $2
+        LIMIT 1;` ;
+
+    const values = [ documentId , sharedWithUserId ] ;
+
+    const result = await pool.query( query , values ) ;
+
+    return result.rows[0] || null ;
+}
+
 module.exports = {
-    createDocumentShare
+    createDocumentShare ,
+    findDocumentShare
 }

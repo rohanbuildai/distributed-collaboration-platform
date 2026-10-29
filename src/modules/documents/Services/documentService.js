@@ -1,5 +1,6 @@
 
 const documentModel = require("../Models/documentModel");
+const documentShareModel = require("../../documentShares/Models/documentShareModel");
 const AppError = require("../../../utils/errors/appError");
 
 const {
@@ -57,15 +58,28 @@ const getDocuments = async ({ ownerId , limit , cursor }) => {
     };
 };
 
+
 const getDocument = async ({ documentId, ownerId }) => {
     validateDocumentId({ documentId });
 
-    const document = await documentModel.findDocumentByIdAndOwner({
-        documentId,
-        ownerId
+    const document = await documentModel.findDocumentById({
+        documentId
     });
 
     if (!document) {
+        throw new AppError("Document not found", 404);
+    }
+
+    if (String(document.owner_id) === String(ownerId)) {
+        return document;
+    }
+
+    const documentShare = await documentShareModel.findDocumentShare({
+        documentId,
+        sharedWithUserId: ownerId
+    });
+
+    if (!documentShare) {
         throw new AppError("Document not found", 404);
     }
 

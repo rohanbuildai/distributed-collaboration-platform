@@ -89,10 +89,28 @@ const deleteDocument = async ({ documentId, ownerId }) => {
     return result.rowCount > 0;
 };
 
+
+const findDocumentById = async ({ documentId }) => {
+    const query = `
+        SELECT id, owner_id, title, content, created_at, updated_at
+        FROM documents
+        WHERE id = $1
+        LIMIT 1
+    `;
+
+    const values = [documentId];
+
+    const result = await pool.query(query, values);
+
+    return result.rows[0] || null;
+};
+
+
 module.exports = {
     createDocument,
     findDocumentsByOwner,
     findDocumentByIdAndOwner,
     updateDocument,
-    deleteDocument
+    deleteDocument ,
+    findDocumentById
 };

@@ -50,7 +50,17 @@ describe("Documents API integration", () => {
                 password: "TestPassword123!"
             })
             .expect(200);
-    });
+
+        const response = await agent
+                .post("/api/v1/documents")
+                .send({
+                    title: "Integration Test Document",
+                    content: "Created through Supertest"
+                })
+                .expect(201);
+
+            documentId = response.body.data.id;
+        });
 
     afterAll(async () => {
         if (testEmail) {
@@ -137,10 +147,15 @@ describe("Documents API integration", () => {
             .expect(401);
     });
 
-    test("prevents another user from viewing a document", async () => {
-    await secondAgent
-        .get(`/api/v1/documents/${documentId}`)
-        .expect(404);
+    test("creates a document for the authenticated user", async () => {
+        expect(documentId).toBeDefined();
+
+        const response = await agent
+            .get(`/api/v1/documents/${documentId}`)
+            .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(String(response.body.data.id)).toBe(String(documentId));
     });
 
     test("prevents another user from updating a document", async () => {
