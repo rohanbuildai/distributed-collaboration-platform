@@ -29,7 +29,44 @@ const findDocumentShare = async ({ documentId , sharedWithUserId }) => {
     return result.rows[0] || null ;
 }
 
+const findSharedDocuments = async ({
+    sharedWithUserId,
+    limit,
+    cursor
+}) => {
+    const query = `
+        SELECT
+            d.id,
+            d.owner_id,
+            d.title,
+            ds.permission,
+            ds.created_at AS shared_at
+        FROM document_shares ds
+        INNER JOIN documents d
+            ON d.id = ds.document_id
+        WHERE ds.shared_with_user_id = $1
+        AND (
+            $2::timestamptz IS NULL
+            OR (ds.created_at, ds.id) < ($2::timestamptz, $3::bigint)
+        )
+        ORDER BY ds.created_at DESC, ds.id DESC
+        LIMIT $4;
+    `;
+
+    const values = [
+        sharedWithUserId,
+        cursor?.createdAt ?? null,
+        cursor?.id ?? null,
+        limit + 1
+    ];
+
+    const result = await pool.query(query, values);
+
+    return result.rows;
+};
+
 module.exports = {
     createDocumentShare ,
-    findDocumentShare
+    findDocumentShare ,
+    findSharedDocuments
 }
