@@ -56,21 +56,21 @@ const findDocumentByIdAndOwner = async ({ documentId, ownerId }) => {
 
 const updateDocument = async ({
     documentId,
-    ownerId,
     title,
     content
 }) => {
     const query = `
         UPDATE documents
         SET
-            title = COALESCE($3, title),
-            content = COALESCE($4, content),
+            title = COALESCE($2, title),
+            content = COALESCE($3, content),
             updated_at = NOW()
-        WHERE id = $1 AND owner_id = $2
-        RETURNING id, owner_id, title, content, created_at, updated_at
+        WHERE id = $1
+        RETURNING id, owner_id, title, content, created_at, updated_at;
     `;
 
-    const values = [documentId, ownerId, title, content];
+    const values = [documentId, title, content];
+
     const result = await pool.query(query, values);
 
     return result.rows[0] || null;

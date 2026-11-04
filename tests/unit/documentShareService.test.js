@@ -6,7 +6,6 @@ jest.mock("../../src/modules/auth/Models/authModel");
 const documentShareModel = require("../../src/modules/documentShares/Models/documentShareModel");
 const documentModel = require("../../src/modules/documents/Models/documentModel");
 const authModel = require("../../src/modules/auth/Models/authModel");
-const AppError = require("../../src/utils/errors/appError");
 
 const {
     createDocumentShare ,

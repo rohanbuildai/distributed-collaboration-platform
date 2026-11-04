@@ -36,7 +36,8 @@ const findSharedDocuments = async ({
 }) => {
     const query = `
         SELECT
-            d.id AS share_id,
+            ds.id AS share_id,
+            d.id AS document_id,
             d.owner_id,
             d.title,
             ds.permission,
