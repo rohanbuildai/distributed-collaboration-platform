@@ -56,21 +56,21 @@ const findDocumentByIdAndOwner = async ({ documentId, ownerId }) => {
 
 const updateDocument = async ({
     documentId,
-    ownerId,
     title,
     content
 }) => {
     const query = `
         UPDATE documents
         SET
-            title = COALESCE($3, title),
-            content = COALESCE($4, content),
+            title = COALESCE($2, title),
+            content = COALESCE($3, content),
             updated_at = NOW()
-        WHERE id = $1 AND owner_id = $2
-        RETURNING id, owner_id, title, content, created_at, updated_at
+        WHERE id = $1
+        RETURNING id, owner_id, title, content, created_at, updated_at;
     `;
 
-    const values = [documentId, ownerId, title, content];
+    const values = [documentId, title, content];
+
     const result = await pool.query(query, values);
 
     return result.rows[0] || null;
@@ -89,10 +89,28 @@ const deleteDocument = async ({ documentId, ownerId }) => {
     return result.rowCount > 0;
 };
 
+
+const findDocumentById = async ({ documentId }) => {
+    const query = `
+        SELECT id, owner_id, title, content, created_at, updated_at
+        FROM documents
+        WHERE id = $1
+        LIMIT 1
+    `;
+
+    const values = [documentId];
+
+    const result = await pool.query(query, values);
+
+    return result.rows[0] || null;
+};
+
+
 module.exports = {
     createDocument,
     findDocumentsByOwner,
     findDocumentByIdAndOwner,
     updateDocument,
-    deleteDocument
+    deleteDocument ,
+    findDocumentById
 };

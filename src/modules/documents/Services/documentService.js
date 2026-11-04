@@ -1,5 +1,6 @@
 
 const documentModel = require("../Models/documentModel");
+const documentShareModel = require("../../documentShares/Models/documentShareModel");
 const AppError = require("../../../utils/errors/appError");
 
 const {
@@ -57,15 +58,28 @@ const getDocuments = async ({ ownerId , limit , cursor }) => {
     };
 };
 
+
 const getDocument = async ({ documentId, ownerId }) => {
     validateDocumentId({ documentId });
 
-    const document = await documentModel.findDocumentByIdAndOwner({
-        documentId,
-        ownerId
+    const document = await documentModel.findDocumentById({
+        documentId
     });
 
     if (!document) {
+        throw new AppError("Document not found", 404);
+    }
+
+    if (String(document.owner_id) === String(ownerId)) {
+        return document;
+    }
+
+    const documentShare = await documentShareModel.findDocumentShare({
+        documentId,
+        sharedWithUserId: ownerId
+    });
+
+    if (!documentShare) {
         throw new AppError("Document not found", 404);
     }
 
@@ -95,18 +109,47 @@ const updateDocument = async ({
             ? null
             : validateContent({ content });
 
-    const document = await documentModel.updateDocument({
-        documentId,
-        ownerId,
-        title: validTitle,
-        content: validContent
+    const document = await documentModel.findDocumentById({
+        documentId
     });
 
     if (!document) {
         throw new AppError("Document not found", 404);
     }
 
-    return document;
+    const isOwner =
+        String(document.owner_id) === String(ownerId);
+
+    if (!isOwner) {
+      
+        const documentShare = await documentShareModel.findDocumentShare({
+            documentId,
+            sharedWithUserId: ownerId
+        });
+
+        if (!documentShare) {
+            throw new AppError("Document not found", 404);
+        }
+
+        if (documentShare.permission !== "editor") {
+            throw new AppError(
+                "You do not have permission to update this document",
+                403
+            );
+        }
+    }
+
+    const updatedDocument = await documentModel.updateDocument({
+        documentId,
+        title: validTitle,
+        content: validContent
+    });
+
+    if (!updatedDocument) {
+        throw new AppError("Document not found", 404);
+    }
+
+    return updatedDocument;
 };
 
 const deleteDocument = async ({ documentId, ownerId }) => {

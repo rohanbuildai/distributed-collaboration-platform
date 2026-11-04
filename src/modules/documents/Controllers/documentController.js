@@ -1,5 +1,7 @@
 
 const documentService = require("../Services/documentService");
+const documentShareService = require("../../documentShares/Services/documentShareService");
+const AppError = require("../../../utils/errors/appError");
 
 const createDocument = async (req, res, next) => {
     try {
@@ -86,10 +88,49 @@ const deleteDocument = async (req, res, next) => {
     }
 };
 
+const parseCursor = (cursor) => {
+    if (!cursor) return null;
+
+    try {
+        return JSON.parse(
+            Buffer.from(cursor, "base64").toString("utf-8")
+        );
+    } catch {
+        throw new AppError("Invalid pagination cursor", 400);
+    }
+};
+
+const getSharedDocuments = async (req, res, next) => {
+    try {
+        const result = await documentShareService.getSharedDocuments({
+            sharedWithUserId: req.user.id,
+            limit: req.query.limit ? Number(req.query.limit) : 10,
+            cursor: parseCursor(req.query.cursor)
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: result.documents,
+            pagination: {
+                limit: result.pagination.limit,
+                hasNextPage: result.pagination.hasNextPage,
+                nextCursor: result.pagination.nextCursor
+                    ? Buffer.from(
+                        JSON.stringify(result.pagination.nextCursor)
+                    ).toString("base64")
+                    : null
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createDocument,
     getDocuments,
     getDocument,
     updateDocument,
-    deleteDocument
+    deleteDocument ,
+    getSharedDocuments
 };

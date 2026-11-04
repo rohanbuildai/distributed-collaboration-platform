@@ -37,6 +37,13 @@ router.get(
 );
 
 router.get(
+    "/shared",
+    authenticate,
+    readDocumentsLimiter,
+    documentController.getSharedDocuments
+);
+
+router.get(
     "/:id",
     authenticate,
     readDocumentsLimiter,
