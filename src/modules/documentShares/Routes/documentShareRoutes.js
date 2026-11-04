@@ -19,4 +19,11 @@ router.post(
     documentShareController.createDocumentShare
 );
 
+router.patch(
+    "/:id/share/:userId",
+    authenticate,
+    shareDocumentLimiter,
+    documentShareController.updateDocumentSharePermission
+);
+
 module.exports = router;

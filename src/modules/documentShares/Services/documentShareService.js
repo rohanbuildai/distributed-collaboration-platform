@@ -93,11 +93,11 @@ const getSharedDocuments = async ({
     const lastDocument = documents[documents.length - 1];
 
     const nextCursor = hasNextPage && lastDocument
-        ? {
-            createdAt: lastDocument.shared_at,
-            id: lastDocument.id
-        }
-        : null;
+    ? {
+        createdAt: lastDocument.shared_at,
+        id: String(lastDocument.share_id)
+    }
+    : null;
 
     return {
         documents,
@@ -109,7 +109,43 @@ const getSharedDocuments = async ({
     };
 };
 
+const updateDocumentSharePermission = async ({
+    documentId,
+    ownerId,
+    sharedWithUserId,
+    permission
+}) => {
+
+    const allowedPermissions = ["viewer" , "editor"] ;
+
+    if (!allowedPermissions.includes(permission)) {
+        throw new AppError("Invalid sharing permission", 400);
+    }
+
+    const document = await documentModel.findDocumentByIdAndOwner({
+        documentId,
+        ownerId
+    });
+
+    if (!document) {
+        throw new AppError("Document not found", 404);
+    }
+
+    const updatedShare = await documentShareModel.updateDocumentSharePermission({
+        documentId,
+        sharedWithUserId,
+        permission
+    });
+
+    if (!updatedShare) {
+        throw new AppError("Document share not found", 404);
+    }
+
+    return updatedShare;
+};
+
 module.exports = {
     createDocumentShare ,
-    getSharedDocuments
+    getSharedDocuments ,
+    updateDocumentSharePermission
 };

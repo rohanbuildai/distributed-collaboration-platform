@@ -20,6 +20,28 @@ const createDocumentShare = async (req, res, next) => {
     }
 };
 
+const updateDocumentSharePermission = async (req, res, next) => {
+    try {
+        const updatedShare = await documentShareService.updateDocumentSharePermission({
+            documentId: req.params.id,
+            ownerId: req.user.id,
+            sharedWithUserId: req.params.userId,
+            permission: req.body.permission
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Document sharing permission updated successfully",
+            data: updatedShare
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 module.exports = {
-    createDocumentShare
+    createDocumentShare ,
+    updateDocumentSharePermission
 };

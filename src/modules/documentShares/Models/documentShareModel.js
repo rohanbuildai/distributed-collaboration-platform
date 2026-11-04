@@ -36,7 +36,7 @@ const findSharedDocuments = async ({
 }) => {
     const query = `
         SELECT
-            d.id,
+            d.id AS share_id,
             d.owner_id,
             d.title,
             ds.permission,
@@ -65,8 +65,38 @@ const findSharedDocuments = async ({
     return result.rows;
 };
 
+const updateDocumentSharePermission = async ({
+    documentId,
+    sharedWithUserId,
+    permission
+}) => {
+    const query = `
+        UPDATE document_shares
+        SET permission = $3
+        WHERE document_id = $1
+        AND shared_with_user_id = $2
+        RETURNING
+            id,
+            document_id,
+            shared_with_user_id,
+            permission,
+            created_at;
+    `;
+
+    const values = [
+        documentId,
+        sharedWithUserId,
+        permission
+    ];
+
+    const result = await pool.query(query, values);
+
+    return result.rows[0] || null;
+};
+
 module.exports = {
     createDocumentShare ,
     findDocumentShare ,
-    findSharedDocuments
+    findSharedDocuments ,
+    updateDocumentSharePermission
 }
