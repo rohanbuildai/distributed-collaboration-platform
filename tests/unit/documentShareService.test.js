@@ -9,7 +9,8 @@ const authModel = require("../../src/modules/auth/Models/authModel");
 const AppError = require("../../src/utils/errors/appError");
 
 const {
-    createDocumentShare
+    createDocumentShare ,
+    revokeDocumentShare
 } = require("../../src/modules/documentShares/Services/documentShareService");
 
 describe("createDocumentShare", () => {
@@ -130,6 +131,86 @@ describe("createDocumentShare", () => {
 
         await expect(
             createDocumentShare(input)
+        ).rejects.toBe(databaseError);
+    });
+});
+
+describe("revokeDocumentShare", () => {
+    const input = {
+        documentId: "10",
+        ownerId: "1",
+        sharedWithUserId: "2"
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+
+        documentModel.findDocumentByIdAndOwner.mockResolvedValue({
+            id: "10",
+            owner_id: "1",
+            title: "Test document"
+        });
+
+        documentShareModel.deleteDocumentShare.mockResolvedValue({
+            id: "5",
+            document_id: "10",
+            shared_with_user_id: "2",
+            permission: "viewer"
+        });
+    });
+
+    test("revokes document sharing successfully", async () => {
+        const result = await revokeDocumentShare(input);
+
+        expect(result).toEqual({
+            id: "5",
+            document_id: "10",
+            shared_with_user_id: "2",
+            permission: "viewer"
+        });
+
+        expect(documentModel.findDocumentByIdAndOwner).toHaveBeenCalledWith({
+            documentId: "10",
+            ownerId: "1"
+        });
+
+        expect(documentShareModel.deleteDocumentShare).toHaveBeenCalledWith({
+            documentId: "10",
+            sharedWithUserId: "2"
+        });
+    });
+
+    test("rejects when requester does not own the document", async () => {
+        documentModel.findDocumentByIdAndOwner.mockResolvedValue(null);
+
+        await expect(
+            revokeDocumentShare(input)
+        ).rejects.toMatchObject({
+            statusCode: 404
+        });
+
+        expect(documentShareModel.deleteDocumentShare).not.toHaveBeenCalled();
+    });
+
+    test("rejects when document share does not exist", async () => {
+        documentShareModel.deleteDocumentShare.mockResolvedValue(null);
+
+        await expect(
+            revokeDocumentShare(input)
+        ).rejects.toMatchObject({
+            statusCode: 404
+        });
+
+        expect(documentShareModel.deleteDocumentShare).toHaveBeenCalled();
+    });
+
+    test("rethrows unexpected database errors", async () => {
+        const databaseError = new Error("Database unavailable");
+
+        documentShareModel.deleteDocumentShare.mockRejectedValue(databaseError);
+
+        await expect(
+            revokeDocumentShare(input)
         ).rejects.toBe(databaseError);
     });
 });

@@ -94,9 +94,36 @@ const updateDocumentSharePermission = async ({
     return result.rows[0] || null;
 };
 
+const deleteDocumentShare = async ({
+    documentId,
+    sharedWithUserId
+}) => {
+    const query = `
+        DELETE FROM document_shares
+        WHERE document_id = $1
+        AND shared_with_user_id = $2
+        RETURNING
+            id,
+            document_id,
+            shared_with_user_id,
+            permission,
+            created_at;
+    `;
+
+    const values = [
+        documentId,
+        sharedWithUserId
+    ];
+
+    const result = await pool.query(query, values);
+
+    return result.rows[0] || null;
+};
+
 module.exports = {
     createDocumentShare ,
     findDocumentShare ,
     findSharedDocuments ,
-    updateDocumentSharePermission
+    updateDocumentSharePermission ,
+    deleteDocumentShare
 }

@@ -144,8 +144,36 @@ const updateDocumentSharePermission = async ({
     return updatedShare;
 };
 
+const revokeDocumentShare = async ({
+    documentId,
+    ownerId,
+    sharedWithUserId
+}) => {
+ 
+    const document = await documentModel.findDocumentByIdAndOwner({
+        documentId,
+        ownerId
+    });
+
+    if (!document) {
+        throw new AppError("Document not found", 404);
+    }
+
+    const deletedShare = await documentShareModel.deleteDocumentShare({
+        documentId,
+        sharedWithUserId
+    });
+
+    if (!deletedShare) {
+        throw new AppError("Document share not found", 404);
+    }
+
+    return deletedShare;
+};
+
 module.exports = {
     createDocumentShare ,
     getSharedDocuments ,
-    updateDocumentSharePermission
+    updateDocumentSharePermission ,
+    revokeDocumentShare
 };

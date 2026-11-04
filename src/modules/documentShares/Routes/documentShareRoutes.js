@@ -26,4 +26,11 @@ router.patch(
     documentShareController.updateDocumentSharePermission
 );
 
+router.delete(
+    "/:id/share/:userId",
+    authenticate,
+    shareDocumentLimiter,
+    documentShareController.revokeDocumentShare
+);
+
 module.exports = router;

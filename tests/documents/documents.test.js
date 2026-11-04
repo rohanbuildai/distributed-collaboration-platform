@@ -9,11 +9,13 @@ describe("Documents API integration", () => {
     let testEmail;
     let secondAgent;
     let secondTestEmail;
+    let secondUserId;
 
     beforeAll(async () => {
         agent = request.agent(app);
         testEmail = `doc-test-${Date.now()}@example.com`;
 
+        // Register first user (document owner)
         await agent
             .post("/api/v1/auth/register")
             .send({
@@ -23,6 +25,7 @@ describe("Documents API integration", () => {
             })
             .expect(201);
 
+        // Login first user
         await agent
             .post("/api/v1/auth/login")
             .send({
@@ -31,6 +34,7 @@ describe("Documents API integration", () => {
             })
             .expect(200);
 
+        // Register second user (recipient)
         secondAgent = request.agent(app);
         secondTestEmail = `doc-test-second-${Date.now()}@example.com`;
 
@@ -43,6 +47,7 @@ describe("Documents API integration", () => {
             })
             .expect(201);
 
+        // Login second user
         await secondAgent
             .post("/api/v1/auth/login")
             .send({
@@ -51,16 +56,24 @@ describe("Documents API integration", () => {
             })
             .expect(200);
 
-        const response = await agent
-                .post("/api/v1/documents")
-                .send({
-                    title: "Integration Test Document",
-                    content: "Created through Supertest"
-                })
-                .expect(201);
+        // Get second user's ID
+        const secondUserResponse = await secondAgent
+            .get("/api/v1/auth/me")
+            .expect(200);
 
-            documentId = response.body.data.id;
-        });
+        secondUserId = secondUserResponse.body.userId;
+
+        // Create initial document
+        const response = await agent
+            .post("/api/v1/documents")
+            .send({
+                title: "Integration Test Document",
+                content: "Created through Supertest"
+            })
+            .expect(201);
+
+        documentId = response.body.data.id;
+    });
 
     afterAll(async () => {
         if (testEmail) {
@@ -74,11 +87,15 @@ describe("Documents API integration", () => {
             await pool.query(
                 "DELETE FROM users WHERE email = $1",
                 [secondTestEmail]
-        );
-}
+            );
+        }
 
         await pool.end();
     });
+
+    // --------------------------------------------------
+    // DOCUMENT CRUD TESTS
+    // --------------------------------------------------
 
     test("creates a document for the authenticated user", async () => {
         const response = await agent
@@ -88,14 +105,19 @@ describe("Documents API integration", () => {
                 content: "Created through Supertest"
             })
             .expect(201);
+
         expect(response.body.success).toBe(true);
+
         expect(response.body.data.title).toBe(
             "Integration Test Document"
         );
+
         expect(response.body.data.content).toBe(
             "Created through Supertest"
         );
+
         expect(response.body.data.id).toBeDefined();
+
         documentId = response.body.data.id;
     });
 
@@ -105,7 +127,10 @@ describe("Documents API integration", () => {
             .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(String(response.body.data.id)).toBe(String(documentId));
+
+        expect(String(response.body.data.id)).toBe(
+            String(documentId)
+        );
     });
 
     test("updates a document", async () => {
@@ -118,9 +143,11 @@ describe("Documents API integration", () => {
             .expect(200);
 
         expect(response.body.success).toBe(true);
+
         expect(response.body.data.title).toBe(
             "Updated Integration Test Document"
         );
+
         expect(response.body.data.content).toBe("Updated content");
     });
 
@@ -131,7 +158,6 @@ describe("Documents API integration", () => {
             .expect(400);
     });
 
-    
     test("lists the authenticated user's documents", async () => {
         const response = await agent
             .get("/api/v1/documents")
@@ -147,7 +173,7 @@ describe("Documents API integration", () => {
             .expect(401);
     });
 
-    test("creates a document for the authenticated user", async () => {
+    test("gets the document belonging to the authenticated user", async () => {
         expect(documentId).toBeDefined();
 
         const response = await agent
@@ -155,7 +181,10 @@ describe("Documents API integration", () => {
             .expect(200);
 
         expect(response.body.success).toBe(true);
-        expect(String(response.body.data.id)).toBe(String(documentId));
+
+        expect(String(response.body.data.id)).toBe(
+            String(documentId)
+        );
     });
 
     test("prevents another user from updating a document", async () => {
@@ -179,23 +208,13 @@ describe("Documents API integration", () => {
             .expect(200);
     });
 
-    test("allows the owner to delete a document", async () => {
-    await agent
-        .delete(`/api/v1/documents/${documentId}`)
-        .expect(204);
-
-    await agent
-        .get(`/api/v1/documents/${documentId}`)
-        .expect(404);
-    });
-
     test("rejects a document with a missing title", async () => {
-    await agent
-        .post("/api/v1/documents")
-        .send({
-            content: "Document without a title"
-        })
-        .expect(400);
+        await agent
+            .post("/api/v1/documents")
+            .send({
+                content: "Document without a title"
+            })
+            .expect(400);
     });
 
     test("rejects an invalid document ID", async () => {
@@ -204,13 +223,17 @@ describe("Documents API integration", () => {
             .expect(400);
     });
 
-    test("returns the current authenticated user's ID", async () => {
-    const response = await agent
-        .get("/api/v1/auth/me")
-        .expect(200);
+    // --------------------------------------------------
+    // AUTHENTICATION TESTS
+    // --------------------------------------------------
 
-    expect(response.body.success).toBe(true);
-    expect(response.body.userId).toBeDefined();
+    test("returns the current authenticated user's ID", async () => {
+        const response = await agent
+            .get("/api/v1/auth/me")
+            .expect(200);
+
+        expect(response.body.success).toBe(true);
+        expect(response.body.userId).toBeDefined();
     });
 
     test("rejects current-user access without authentication", async () => {
@@ -219,7 +242,10 @@ describe("Documents API integration", () => {
             .expect(401);
     });
 
-    
+    // --------------------------------------------------
+    // DOCUMENT PAGINATION TESTS
+    // --------------------------------------------------
+
     test.each(["0", "101", "1.5", "abc"])(
         "rejects invalid pagination limit: %s",
         async (limit) => {
@@ -257,5 +283,132 @@ describe("Documents API integration", () => {
         expect(response.body.pagination.limit).toBe(1);
     });
 
+    // --------------------------------------------------
+    // DOCUMENT SHARING REVOCATION TESTS
+    // --------------------------------------------------
 
-}); 
+    describe("Document Sharing Revocation API", () => {
+
+        const createShare = async () => {
+            await agent
+                .post(`/api/v1/documents/${documentId}/share`)
+                .send({
+                    sharedWithUserId: secondUserId,
+                    permission: "viewer"
+                })
+                .expect(201);
+        };
+
+        test("allows the owner to revoke document sharing", async () => {
+            await createShare();
+
+            const response = await agent
+                .delete(
+                    `/api/v1/documents/${documentId}/share/${secondUserId}`
+                )
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+
+            expect(response.body.message).toBe(
+                "Document sharing revoked successfully"
+            );
+
+            // Recipient should immediately lose read access.
+            await secondAgent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(404);
+
+            // Recipient should no longer see the document
+            // in their shared documents list.
+            const sharedResponse = await secondAgent
+                .get("/api/v1/documents/shared")
+                .expect(200);
+
+            const sharedDocumentIds = sharedResponse.body.data.map(
+                document => String(document.id)
+            );
+
+            expect(sharedDocumentIds).not.toContain(
+                String(documentId)
+            );
+        });
+
+        test("rejects revocation when sharing record does not exist", async () => {
+            await agent
+                .delete(
+                    `/api/v1/documents/${documentId}/share/${secondUserId}`
+                )
+                .expect(404);
+        });
+
+        test("prevents the recipient from revoking their own access", async () => {
+            await createShare();
+
+            await secondAgent
+                .delete(
+                    `/api/v1/documents/${documentId}/share/${secondUserId}`
+                )
+                .expect(404);
+
+            // Verify the share still exists.
+            await secondAgent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(200);
+
+            // Cleanup
+            await agent
+                .delete(
+                    `/api/v1/documents/${documentId}/share/${secondUserId}`
+                )
+                .expect(200);
+        });
+
+        test("rejects unauthenticated revocation", async () => {
+            await createShare();
+
+            await request(app)
+                .delete(
+                    `/api/v1/documents/${documentId}/share/${secondUserId}`
+                )
+                .expect(401);
+
+            // Verify the share still exists.
+            await secondAgent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(200);
+
+            // Cleanup
+            await agent
+                .delete(
+                    `/api/v1/documents/${documentId}/share/${secondUserId}`
+                )
+                .expect(200);
+        });
+
+        test("rejects revocation for a nonexistent document", async () => {
+            await agent
+                .delete(
+                    `/api/v1/documents/999999999/share/${secondUserId}`
+                )
+                .expect(404);
+        });
+    });
+
+    // --------------------------------------------------
+    // DOCUMENT DELETION TEST
+    // Keep this test last because it permanently deletes
+    // the document used by the tests above.
+    // --------------------------------------------------
+
+    test("allows the owner to delete a document", async () => {
+        await agent
+            .delete(`/api/v1/documents/${documentId}`)
+            .expect(204);
+
+        await agent
+            .get(`/api/v1/documents/${documentId}`)
+            .expect(404);
+    });
+
+});
