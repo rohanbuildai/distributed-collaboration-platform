@@ -13,9 +13,18 @@ const {
 const createDocument = async ({ ownerId, title, content }) => {
     const validTitle = validateTitle({ title });
 
+    const defaultContent = {
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+            },
+        ],
+    };
+
     const validContent =
         content === undefined
-            ? ""
+            ? defaultContent
             : validateContent({ content });
 
     return documentModel.createDocument({

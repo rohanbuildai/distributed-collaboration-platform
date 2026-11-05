@@ -18,6 +18,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@tiptap/core": "^3.32.3",
+    "@tiptap/pm": "^3.32.3",
+    "@tiptap/starter-kit": "^3.32.3",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.3",

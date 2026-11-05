@@ -1,5 +1,6 @@
 
 const AppError = require("../../../utils/errors/appError");
+const { validateRichTextDocument } = require("./documentSchema") ;
 
 const validateDocumentId = ({ documentId }) => {
     if (
@@ -27,20 +28,41 @@ const validateTitle = ({ title }) => {
     return normalizedTitle;
 };
 
+
 const validateContent = ({ content }) => {
-    if (typeof content !== "string") {
-        throw new AppError("Content must be a string", 400);
+    if (
+        typeof content !== "object" ||
+        content === null ||
+        Array.isArray(content)
+    ) {
+        throw new AppError(
+            "Content must be a valid document object",
+            400
+        );
     }
 
-    if (Buffer.byteLength(content, "utf8") > 100000) {
+    const contentSize = Buffer.byteLength(
+        JSON.stringify(content),
+        "utf8"
+    );
+
+    if (contentSize > 100000) {
         throw new AppError(
             "Content cannot exceed 100 KB",
             413
         );
     }
 
-    return content;
+    try {
+        return validateRichTextDocument(content);
+    } catch (error) {
+        throw new AppError(
+            "Invalid rich-text document structure",
+            400
+        );
+    }
 };
+
 
 const validateDocumentPagination = ({ limit, cursor }) => {
     let parsedLimit = 20;
