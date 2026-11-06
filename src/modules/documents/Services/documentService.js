@@ -1,7 +1,9 @@
 
 const documentModel = require("../Models/documentModel");
 const documentShareModel = require("../../documentShares/Models/documentShareModel");
+const documentVersionModel = require("../../documentVersions/Models/documentVersionModel");
 const AppError = require("../../../utils/errors/appError");
+const pool = require("../../../config/database") ;
 
 const {
     validateDocumentId,
@@ -118,47 +120,84 @@ const updateDocument = async ({
             ? null
             : validateContent({ content });
 
-    const document = await documentModel.findDocumentById({
-        documentId
-    });
+    const client = await pool.connect();
 
-    if (!document) {
-        throw new AppError("Document not found", 404);
-    }
+    try {
+        await client.query("BEGIN");
 
-    const isOwner =
-        String(document.owner_id) === String(ownerId);
-
-    if (!isOwner) {
-      
-        const documentShare = await documentShareModel.findDocumentShare({
+        const document = await documentModel.findDocumentByIdForUpdate({
             documentId,
-            sharedWithUserId: ownerId
+            client
         });
 
-        if (!documentShare) {
+        if (!document) {
             throw new AppError("Document not found", 404);
         }
 
-        if (documentShare.permission !== "editor") {
-            throw new AppError(
-                "You do not have permission to update this document",
-                403
-            );
+        const isOwner =
+            String(document.owner_id) === String(ownerId);
+
+        if (!isOwner) {
+            const documentShare = await documentShareModel.findDocumentShare({
+                documentId,
+                sharedWithUserId: ownerId
+            });
+
+            if (!documentShare) {
+                throw new AppError("Document not found", 404);
+            }
+
+            if (documentShare.permission !== "editor") {
+                throw new AppError(
+                    "You do not have permission to update this document",
+                    403
+                );
+            }
         }
+
+        const latestVersionNumber =
+            await documentVersionModel.getLatestVersionNumber({
+                documentId,
+                client
+            });
+
+        const nextVersionNumber = latestVersionNumber + 1;
+
+        await documentVersionModel.createVersion({
+            documentId,
+            versionNumber: nextVersionNumber,
+            title: document.title,
+            content: document.content,
+            editedBy: ownerId,
+            client
+        });
+
+        const updatedDocument = await documentModel.updateDocument({
+            documentId,
+            title: validTitle,
+            content: validContent,
+            client
+        });
+
+        if (!updatedDocument) {
+            throw new AppError("Document not found", 404);
+        }
+
+        await client.query("COMMIT");
+
+        return updatedDocument;
+
+        } catch (error) {
+        try {
+            await client.query("ROLLBACK");
+        } catch (rollbackError) {
+            
+        }
+
+        throw error;
+    } finally {
+        client.release();
     }
-
-    const updatedDocument = await documentModel.updateDocument({
-        documentId,
-        title: validTitle,
-        content: validContent
-    });
-
-    if (!updatedDocument) {
-        throw new AppError("Document not found", 404);
-    }
-
-    return updatedDocument;
 };
 
 const deleteDocument = async ({ documentId, ownerId }) => {

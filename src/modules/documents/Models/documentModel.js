@@ -57,7 +57,8 @@ const findDocumentByIdAndOwner = async ({ documentId, ownerId }) => {
 const updateDocument = async ({
     documentId,
     title,
-    content
+    content,
+    client
 }) => {
     const query = `
         UPDATE documents
@@ -69,9 +70,11 @@ const updateDocument = async ({
         RETURNING id, owner_id, title, content, created_at, updated_at;
     `;
 
+    const db = client || pool;
+
     const values = [documentId, title, content];
 
-    const result = await pool.query(query, values);
+    const result = await db.query(query, values);
 
     return result.rows[0] || null;
 };
@@ -105,6 +108,19 @@ const findDocumentById = async ({ documentId }) => {
     return result.rows[0] || null;
 };
 
+const findDocumentByIdForUpdate = async ({ documentId, client }) => {
+    const query = `
+        SELECT id, owner_id, title, content, created_at, updated_at
+        FROM documents
+        WHERE id = $1
+        FOR UPDATE
+    `;
+
+    const result = await client.query(query, [documentId]);
+
+    return result.rows[0] || null;
+};
+
 
 module.exports = {
     createDocument,
@@ -112,5 +128,6 @@ module.exports = {
     findDocumentByIdAndOwner,
     updateDocument,
     deleteDocument ,
-    findDocumentById
+    findDocumentById ,
+    findDocumentByIdForUpdate
 };
