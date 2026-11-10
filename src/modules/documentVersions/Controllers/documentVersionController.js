@@ -46,7 +46,33 @@ const getDocumentVersion = async (req, res, next) => {
     }
 };
 
+
+const restoreDocumentVersion = async (req, res, next) => {
+    try {
+        const { documentId, versionId } = req.params;
+        const userId = req.user.id;
+
+        const result =
+            await documentVersionService.restoreDocumentVersion({
+                documentId,
+                versionId,
+                userId
+            });
+
+        return res.status(200).json({
+            success: true,
+            message: "Document restored successfully",
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 module.exports = {
     getDocumentVersions,
     getDocumentVersion,
+    restoreDocumentVersion
 };

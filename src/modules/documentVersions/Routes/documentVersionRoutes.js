@@ -26,4 +26,13 @@ router.get(
     documentVersionController.getDocumentVersion
 );
 
+
+router.post(
+    "/:documentId/versions/:versionId/restore",
+    authenticate,
+    documentVersionLimiter,
+    documentVersionController.restoreDocumentVersion
+);
+
+
 module.exports = router;

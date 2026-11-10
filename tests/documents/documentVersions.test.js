@@ -402,4 +402,145 @@ describe("Document Versions API integration", () => {
                 .expect(403);
         });
     });
+
+
+    describe("POST /api/v1/documents/:documentId/versions/:versionId/restore", () => {
+
+        test("allows the owner to restore a previous document version", async () => {
+            const historyBefore = await ownerAgent
+                .get(`/api/v1/documents/${documentId}/versions`)
+                .expect(200);
+
+            const targetVersion = historyBefore.body.data.find(
+                version => Number(version.version_number) === 1
+            );
+
+            expect(targetVersion).toBeDefined();
+
+            const currentDocumentResponse = await ownerAgent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(200);
+
+            const previousCurrentTitle = currentDocumentResponse.body.data.title;
+            const previousCurrentContent = currentDocumentResponse.body.data.content;
+
+            const response = await ownerAgent
+                .post(
+                    `/api/v1/documents/${documentId}/versions/${targetVersion.id}/restore`
+                )
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toBe(
+                "Document restored successfully"
+            );
+
+            expect(response.body.data.restoredFromVersion).toBe(1);
+
+            expect(response.body.data.newVersionNumber).toBeDefined();
+
+            expect(response.body.data.document.title).toBe(
+                targetVersion.title
+            );
+
+            expect(response.body.data.document.content).toEqual(
+                targetVersion.content
+            );
+
+            // Verify the actual document state in the database.
+            const restoredDocumentResponse = await ownerAgent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(200);
+
+            expect(restoredDocumentResponse.body.data.title).toBe(
+                targetVersion.title
+            );
+
+            expect(restoredDocumentResponse.body.data.content).toEqual(
+                targetVersion.content
+            );
+
+            // Verify the previous current state was preserved as a new version.
+            const historyAfter = await ownerAgent
+                .get(`/api/v1/documents/${documentId}/versions`)
+                .expect(200);
+
+            const snapshotVersion = historyAfter.body.data.find(
+                version =>
+                    Number(version.version_number) ===
+                    Number(response.body.data.newVersionNumber)
+            );
+
+            expect(snapshotVersion).toBeDefined();
+
+            expect(snapshotVersion.title).toBe(previousCurrentTitle);
+
+            expect(snapshotVersion.content).toEqual(
+                previousCurrentContent
+            );
+
+            // Existing historical versions must still exist.
+            expect(historyAfter.body.data.length).toBeGreaterThanOrEqual(
+                historyBefore.body.data.length + 1
+            );
+        });
+
+        test("does not allow a viewer to restore a document", async () => {
+            const historyResponse = await ownerAgent
+                .get(`/api/v1/documents/${documentId}/versions`)
+                .expect(200);
+
+            const targetVersion = historyResponse.body.data.find(
+                version => Number(version.version_number) === 1
+            );
+
+            await viewerAgent
+                .post(
+                    `/api/v1/documents/${documentId}/versions/${targetVersion.id}/restore`
+                )
+                .expect(403);
+        });
+
+        test("rejects unauthenticated restore requests", async () => {
+            const historyResponse = await ownerAgent
+                .get(`/api/v1/documents/${documentId}/versions`)
+                .expect(200);
+
+            const targetVersion = historyResponse.body.data[0];
+
+            await request(app)
+                .post(
+                    `/api/v1/documents/${documentId}/versions/${targetVersion.id}/restore`
+                )
+                .expect(401);
+        });
+
+        test("rejects an invalid document ID", async () => {
+            await ownerAgent
+                .post("/api/v1/documents/invalid-id/versions/1/restore")
+                .expect(400);
+        });
+
+        test("rejects an invalid version ID", async () => {
+            await ownerAgent
+                .post(`/api/v1/documents/${documentId}/versions/invalid-id/restore`)
+                .expect(400);
+        });
+
+        test("returns 404 when the document does not exist", async () => {
+            await ownerAgent
+                .post("/api/v1/documents/999999999/versions/1/restore")
+                .expect(404);
+        });
+
+        test("returns 404 when the requested version does not exist", async () => {
+            await ownerAgent
+                .post(
+                    `/api/v1/documents/${documentId}/versions/999999999/restore`
+                )
+                .expect(404);
+        });
+
+    });
+
 });
