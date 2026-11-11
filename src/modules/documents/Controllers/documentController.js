@@ -62,7 +62,8 @@ const updateDocument = async (req, res, next) => {
             documentId: req.params.id,
             ownerId: req.user.id,
             title: req.body.title,
-            content: req.body.content
+            content: req.body.content ,
+            expectedRevision: req.body.expectedRevision
         });
 
         return res.status(200).json({
