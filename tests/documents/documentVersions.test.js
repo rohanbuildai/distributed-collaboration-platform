@@ -96,6 +96,7 @@ describe("Document Versions API integration", () => {
             .send({
                 title: "Updated Document 1",
                 content: makeDocumentContent("First updated content"),
+                expectedRevision: 1,
             })
             .expect(200);
 
@@ -105,6 +106,7 @@ describe("Document Versions API integration", () => {
             .send({
                 title: "Updated Document 2",
                 content: makeDocumentContent("Second updated content"),
+                expectedRevision: 2,
             })
             .expect(200);
 
@@ -114,6 +116,7 @@ describe("Document Versions API integration", () => {
             .send({
                 title: "Updated Document 3",
                 content: makeDocumentContent("Third updated content"),
+                expectedRevision: 3,
             })
             .expect(200);
     });
@@ -398,6 +401,7 @@ describe("Document Versions API integration", () => {
                 .send({
                     title: "Viewer Unauthorized Update",
                     content: makeDocumentContent("Unauthorized content"),
+                    expectedRevision: 4,
                 })
                 .expect(403);
         });
@@ -424,26 +428,29 @@ describe("Document Versions API integration", () => {
             const previousCurrentTitle = currentDocumentResponse.body.data.title;
             const previousCurrentContent = currentDocumentResponse.body.data.content;
 
-            const response = await ownerAgent
-                .post(
-                    `/api/v1/documents/${documentId}/versions/${targetVersion.id}/restore`
-                )
-                .expect(200);
+            const restoreResponse = await ownerAgent.post(
+                `/api/v1/documents/${documentId}/versions/${targetVersion.id}/restore`
+            );
 
-            expect(response.body.success).toBe(true);
-            expect(response.body.message).toBe(
+            console.log("RESTORE STATUS:", restoreResponse.status);
+            console.log("RESTORE RESPONSE:", restoreResponse.body);
+
+            expect(restoreResponse.status).toBe(200);
+
+            expect(restoreResponse.body.success).toBe(true);
+            expect(restoreResponse.body.message).toBe(
                 "Document restored successfully"
             );
 
-            expect(response.body.data.restoredFromVersion).toBe(1);
+            expect(restoreResponse.body.data.restoredFromVersion).toBe(1);
 
-            expect(response.body.data.newVersionNumber).toBeDefined();
+            expect(restoreResponse.body.data.newVersionNumber).toBeDefined();
 
-            expect(response.body.data.document.title).toBe(
+            expect(restoreResponse.body.data.document.title).toBe(
                 targetVersion.title
             );
 
-            expect(response.body.data.document.content).toEqual(
+            expect(restoreResponse.body.data.document.content).toEqual(
                 targetVersion.content
             );
 
@@ -468,7 +475,7 @@ describe("Document Versions API integration", () => {
             const snapshotVersion = historyAfter.body.data.find(
                 version =>
                     Number(version.version_number) ===
-                    Number(response.body.data.newVersionNumber)
+                    Number(restoreResponse.body.data.newVersionNumber)
             );
 
             expect(snapshotVersion).toBeDefined();

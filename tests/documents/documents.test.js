@@ -133,6 +133,7 @@ describe("Documents API integration", () => {
         );
 
         expect(response.body.data.id).toBeDefined();
+        expect(response.body.data.revision).toBe(1);
 
         documentId = response.body.data.id;
     });
@@ -151,6 +152,8 @@ describe("Documents API integration", () => {
         expect(response.body.data.content).toEqual(
             makeDocumentContent("Created through Supertest")
         );
+
+        expect(response.body.data.revision).toBe(1);
     });
 
     test("updates a document", async () => {
@@ -160,7 +163,8 @@ describe("Documents API integration", () => {
             .patch(`/api/v1/documents/${documentId}`)
             .send({
                 title: "Updated Integration Test Document",
-                content: updatedContent
+                content: updatedContent,
+                expectedRevision: 1
             })
             .expect(200);
 
@@ -171,6 +175,136 @@ describe("Documents API integration", () => {
         );
 
         expect(response.body.data.content).toEqual(updatedContent);
+
+        expect(response.body.data.revision).toBe(2);
+    });
+
+    // --------------------------------------------------
+    // CONCURRENCY CONTROL TESTS
+    // --------------------------------------------------
+
+    describe("Optimistic Concurrency Control", () => {
+        test("rejects an update with a stale revision", async () => {
+            const response = await agent
+                .patch(`/api/v1/documents/${documentId}`)
+                .send({
+                    title: "Stale Update Attempt",
+                    expectedRevision: 1
+                })
+                .expect(409);
+
+            expect(response.body.success).toBe(false);
+
+            // Verify that the successful update remains intact.
+            const documentResponse = await agent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(200);
+
+            expect(documentResponse.body.data.title).toBe(
+                "Updated Integration Test Document"
+            );
+
+            expect(documentResponse.body.data.revision).toBe(2);
+        });
+
+        test("rejects an update without expectedRevision", async () => {
+            await agent
+                .patch(`/api/v1/documents/${documentId}`)
+                .send({
+                    title: "Missing Revision Update"
+                })
+                .expect(400);
+        });
+
+        test.each([
+            0,
+            -1,
+            1.5,
+            "invalid",
+            null
+        ])(
+            "rejects an invalid expectedRevision: %s",
+            async (expectedRevision) => {
+                await agent
+                    .patch(`/api/v1/documents/${documentId}`)
+                    .send({
+                        title: "Invalid Revision Update",
+                        expectedRevision
+                    })
+                    .expect(400);
+            }
+        );
+
+        test("allows only one update when two requests use the same revision", async () => {
+            const expectedRevision = 2;
+
+            const [firstResponse, secondResponse] = await Promise.all([
+                agent
+                    .patch(`/api/v1/documents/${documentId}`)
+                    .send({
+                        title: "Concurrent Update One",
+                        expectedRevision
+                    }),
+
+                agent
+                    .patch(`/api/v1/documents/${documentId}`)
+                    .send({
+                        title: "Concurrent Update Two",
+                        expectedRevision
+                    })
+            ]);
+
+            const statuses = [
+                firstResponse.status,
+                secondResponse.status
+            ].sort();
+
+            expect(statuses).toEqual([200, 409]);
+
+            // Exactly one update should succeed.
+            const successfulResponses = [
+                firstResponse,
+                secondResponse
+            ].filter(response => response.status === 200);
+
+            expect(successfulResponses).toHaveLength(1);
+
+            // Verify final document state.
+            const documentResponse = await agent
+                .get(`/api/v1/documents/${documentId}`)
+                .expect(200);
+
+            expect([
+                "Concurrent Update One",
+                "Concurrent Update Two"
+            ]).toContain(documentResponse.body.data.title);
+
+            expect(documentResponse.body.data.revision).toBe(3);
+        });
+
+        test("does not create an extra version snapshot for a stale update", async () => {
+            const versionsBefore = await agent
+                .get(`/api/v1/documents/${documentId}/versions`)
+                .expect(200);
+
+            const versionCountBefore = versionsBefore.body.data.length;
+
+            await agent
+                .patch(`/api/v1/documents/${documentId}`)
+                .send({
+                    title: "Another Stale Update",
+                    expectedRevision: 1
+                })
+                .expect(409);
+
+            const versionsAfter = await agent
+                .get(`/api/v1/documents/${documentId}/versions`)
+                .expect(200);
+
+            expect(versionsAfter.body.data).toHaveLength(
+                versionCountBefore
+            );
+        });
     });
 
     test("rejects an empty document update", async () => {
@@ -196,7 +330,8 @@ describe("Documents API integration", () => {
                             ]
                         }
                     ]
-                }
+                },
+                expectedRevision: 3
             })
             .expect(400);
     });
@@ -241,7 +376,8 @@ describe("Documents API integration", () => {
             .patch(`/api/v1/documents/${documentId}`)
             .send({
                 title: "Unauthorized Update",
-                content: makeDocumentContent("This should not be saved")
+                content: makeDocumentContent("This should not be saved"),
+                expectedRevision: 3
             })
             .expect(404);
     });

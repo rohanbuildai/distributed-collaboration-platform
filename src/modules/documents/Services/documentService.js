@@ -101,7 +101,8 @@ const updateDocument = async ({
     documentId,
     ownerId,
     title,
-    content
+    content ,
+    expectedRevision
 }) => {
     validateDocumentId({ documentId });
 
@@ -119,6 +120,16 @@ const updateDocument = async ({
         content === undefined
             ? null
             : validateContent({ content });
+    
+    if (
+        !Number.isInteger(expectedRevision) ||
+        expectedRevision < 1
+    ) {
+        throw new AppError(
+            "A valid expectedRevision is required",
+            400
+        );
+    }
 
     const client = await pool.connect();
 
@@ -140,7 +151,8 @@ const updateDocument = async ({
         if (!isOwner) {
             const documentShare = await documentShareModel.findDocumentShare({
                 documentId,
-                sharedWithUserId: ownerId
+                sharedWithUserId: ownerId ,
+                client
             });
 
             if (!documentShare) {
@@ -153,6 +165,13 @@ const updateDocument = async ({
                     403
                 );
             }
+        }
+
+        if (document.revision !== expectedRevision) {
+            throw new AppError(
+                "Document has been modified. Fetch the latest version before updating.",
+                409
+            );
         }
 
         const latestVersionNumber =
@@ -176,12 +195,16 @@ const updateDocument = async ({
             documentId,
             title: validTitle,
             content: validContent,
+            expectedRevision ,
             client
         });
 
         if (!updatedDocument) {
-            throw new AppError("Document not found", 404);
-        }
+            throw new AppError(
+                "Document update failed. Please retry.",
+                409
+        );
+}
 
         await client.query("COMMIT");
 

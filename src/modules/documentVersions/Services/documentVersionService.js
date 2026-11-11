@@ -200,6 +200,7 @@ const restoreDocumentVersion = async ({
                 documentId,
                 title: targetVersion.title,
                 content: targetVersion.content,
+                expectedRevision: document.revision,
                 client
             });
 

@@ -5,7 +5,7 @@ const createDocument = async ({ ownerId, title, content }) => {
     const query = `
         INSERT INTO documents (owner_id, title, content)
         VALUES ($1, $2, $3)
-        RETURNING id, owner_id, title, content, created_at, updated_at
+        RETURNING id, owner_id, title, content, revision, created_at, updated_at
     `;
 
     const values = [ownerId, title, content];
@@ -17,7 +17,7 @@ const createDocument = async ({ ownerId, title, content }) => {
 
 const findDocumentsByOwner = async ({ ownerId, limit, cursor }) => {
     const query = `
-        SELECT id, owner_id, title, content, created_at, updated_at
+        SELECT id, owner_id, title, content, revision,  created_at, updated_at
         FROM documents
         WHERE owner_id = $1
           AND (
@@ -42,7 +42,7 @@ const findDocumentsByOwner = async ({ ownerId, limit, cursor }) => {
 
 const findDocumentByIdAndOwner = async ({ documentId, ownerId }) => {
     const query = `
-        SELECT id, owner_id, title, content, created_at, updated_at
+        SELECT id, owner_id, title, content, revision,  created_at, updated_at
         FROM documents
         WHERE id = $1 AND owner_id = $2
         LIMIT 1
@@ -54,10 +54,12 @@ const findDocumentByIdAndOwner = async ({ documentId, ownerId }) => {
     return result.rows[0] || null;
 };
 
+
 const updateDocument = async ({
     documentId,
     title,
     content,
+    expectedRevision,
     client
 }) => {
     const query = `
@@ -65,19 +67,35 @@ const updateDocument = async ({
         SET
             title = COALESCE($2, title),
             content = COALESCE($3, content),
+            revision = revision + 1,
             updated_at = NOW()
-        WHERE id = $1
-        RETURNING id, owner_id, title, content, created_at, updated_at;
+        WHERE
+            id = $1
+            AND revision = $4
+        RETURNING
+            id,
+            owner_id,
+            title,
+            content,
+            revision,
+            created_at,
+            updated_at;
     `;
 
     const db = client || pool;
 
-    const values = [documentId, title, content];
+    const values = [
+        documentId,
+        title,
+        content,
+        expectedRevision
+    ];
 
     const result = await db.query(query, values);
 
     return result.rows[0] || null;
 };
+
 
 const deleteDocument = async ({ documentId, ownerId }) => {
     const query = `
@@ -95,7 +113,7 @@ const deleteDocument = async ({ documentId, ownerId }) => {
 
 const findDocumentById = async ({ documentId }) => {
     const query = `
-        SELECT id, owner_id, title, content, created_at, updated_at
+        SELECT id, owner_id, title, content, revision, created_at, updated_at
         FROM documents
         WHERE id = $1
         LIMIT 1
@@ -110,7 +128,7 @@ const findDocumentById = async ({ documentId }) => {
 
 const findDocumentByIdForUpdate = async ({ documentId, client }) => {
     const query = `
-        SELECT id, owner_id, title, content, created_at, updated_at
+        SELECT id, owner_id, title, content, revision, created_at, updated_at
         FROM documents
         WHERE id = $1
         FOR UPDATE
