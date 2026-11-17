@@ -10,9 +10,9 @@ const documentShareModel = require(
 const AppError = require(
     "../../../utils/errors/appError"
 );
-const { updateDocument } = require("../../documents/Models/documentModel");
 
 const getDocumentAccess = async ({ documentId, userId }) => {
+
     const document = await documentService.getDocument({
         documentId,
         ownerId: userId
@@ -24,22 +24,6 @@ const getDocumentAccess = async ({ documentId, userId }) => {
             permission: "owner"
         };
     }
-
-const updateDocument = async ({
-    documentId,
-    userId,
-    title,
-    content,
-    expectedRevision
-}) => {
-    return documentService.updateDocument({
-        documentId,
-        ownerId: userId,
-        title,
-        content,
-        expectedRevision
-    });
-};
 
     const documentShare = await documentShareModel.findDocumentShare({
         documentId,
@@ -56,7 +40,27 @@ const updateDocument = async ({
     };
 };
 
+
+const updateDocument = async ({
+    documentId,
+    userId,
+    title,
+    content,
+    expectedRevision,
+    operationId
+}) => {
+    return documentService.updateDocument({
+        documentId,
+        ownerId: userId,
+        title,
+        content,
+        expectedRevision,
+        operationId
+    });
+};
+
+
 module.exports = {
-    getDocumentAccess ,
+    getDocumentAccess,
     updateDocument
 };

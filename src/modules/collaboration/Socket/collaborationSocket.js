@@ -32,7 +32,6 @@ const registerCollaborationSocket = (io) => {
     io.on("connection", (socket) => {
         console.log(`Socket connected: ${socket.user.id}`);
 
-        // Join a document room.
         socket.on("document:join", async (payload, acknowledge) => {
             const ack = typeof acknowledge === "function"
                 ? acknowledge
@@ -119,7 +118,8 @@ const registerCollaborationSocket = (io) => {
                     documentId,
                     title,
                     content,
-                    expectedRevision
+                    expectedRevision ,
+                    operationId
                 } = payload || {};
 
                 if (
@@ -130,6 +130,17 @@ const registerCollaborationSocket = (io) => {
                         success: false,
                         statusCode: 400,
                         message: "Invalid document ID"
+                    });
+                }
+
+                if (
+                    typeof operationId !== "string" ||
+                    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)
+                ) {
+                    return ack({
+                        success: false,
+                        statusCode: 400,
+                        message: "A valid operationId UUID is required"
                     });
                 }
 
@@ -165,14 +176,40 @@ const registerCollaborationSocket = (io) => {
                     });
                 }
 
-                const updatedDocument =
-                    await collaborationService.updateDocument({
+                const { permission } =
+                    await collaborationService.getDocumentAccess({
                         documentId,
-                        userId: socket.user.id,
-                        title,
-                        content,
-                        expectedRevision
+                        userId: socket.user.id
                     });
+
+                if (permission === "viewer") {
+                    return ack({
+                        success: false,
+                        statusCode: 403,
+                        message: "You do not have permission to update this document"
+                    });
+                }
+
+                const updateResult =
+                await collaborationService.updateDocument({
+                    documentId,
+                    userId: socket.user.id,
+                    title,
+                    content,
+                    expectedRevision,
+                    operationId
+                });
+                
+                if (updateResult.duplicate) {
+                    return ack({
+                        success: true,
+                        message: "Operation already processed",
+                        data: updateResult.document,
+                        duplicate: true
+                    });
+                }
+
+                const updatedDocument = updateResult.document;
 
                 await removeUnauthorizedSockets(io, room, documentId);
 
@@ -183,7 +220,8 @@ const registerCollaborationSocket = (io) => {
                 return ack({
                     success: true,
                     message: "Document updated successfully",
-                    data: updatedDocument
+                    data: updatedDocument,
+                    duplicate: false
                 });
 
             } catch (error) {

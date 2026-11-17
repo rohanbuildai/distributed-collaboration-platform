@@ -140,6 +140,76 @@ const findDocumentByIdForUpdate = async ({ documentId, client }) => {
 };
 
 
+const findDocumentOperation = async ({
+    documentId,
+    userId,
+    operationId,
+    requestPayload,
+    client
+}) => {
+    const query = `
+        SELECT
+            id,
+            request_payload,
+            response_payload,
+            request_payload = $4::jsonb AS payload_matches
+        FROM document_operations
+        WHERE
+            document_id = $1
+            AND user_id = $2
+            AND operation_id = $3
+        LIMIT 1
+    `;
+
+    const values = [
+        documentId,
+        userId,
+        operationId,
+        JSON.stringify(requestPayload)
+    ];
+
+    const result = await client.query(query, values);
+
+    return result.rows[0] || null;
+};
+
+
+const createDocumentOperation = async ({
+    documentId,
+    userId,
+    operationId,
+    requestPayload,
+    responsePayload,
+    client
+}) => {
+    const query = `
+        INSERT INTO document_operations (
+            document_id,
+            user_id,
+            operation_id,
+            request_payload,
+            response_payload
+        )
+        VALUES ($1, $2, $3, $4::jsonb, $5::jsonb)
+        RETURNING id, created_at
+    `;
+
+    const values = [
+        documentId,
+        userId,
+        operationId,
+        JSON.stringify(requestPayload),
+        JSON.stringify(responsePayload)
+    ];
+
+    const result = await client.query(query, values);
+
+    return result.rows[0];
+};
+
+
+
+
 module.exports = {
     createDocument,
     findDocumentsByOwner,
@@ -147,5 +217,7 @@ module.exports = {
     updateDocument,
     deleteDocument ,
     findDocumentById ,
-    findDocumentByIdForUpdate
+    findDocumentByIdForUpdate ,
+    findDocumentOperation ,
+    createDocumentOperation
 };

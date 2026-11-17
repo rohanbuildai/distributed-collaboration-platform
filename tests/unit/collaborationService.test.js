@@ -8,7 +8,8 @@ const documentShareModel = require(
 );
 
 const {
-    getDocumentAccess
+    getDocumentAccess ,
+    updateDocument
 } = require(
     "../../src/modules/collaboration/Services/collaborationService"
 );
@@ -115,5 +116,41 @@ describe("Collaboration Service - Document Access", () => {
 
         expect(documentShareModel.findDocumentShare)
             .not.toHaveBeenCalled();
+    });
+});
+
+describe("Collaboration Service - Document Update", () => {
+    test("forwards operationId to documentService", async () => {
+        const result = {
+            document: {
+                id: "123",
+                revision: 5
+            },
+            duplicate: false
+        };
+
+        documentService.updateDocument = jest.fn()
+            .mockResolvedValue(result);
+
+        const payload = {
+            documentId: "123",
+            userId: "owner-123",
+            title: "Updated title",
+            expectedRevision: 4,
+            operationId: "550e8400-e29b-41d4-a716-446655440000"
+        };
+
+        const response = await updateDocument(payload);
+
+        expect(documentService.updateDocument).toHaveBeenCalledWith({
+            documentId: "123",
+            ownerId: "owner-123",
+            title: "Updated title",
+            content: undefined,
+            expectedRevision: 4,
+            operationId: payload.operationId
+        });
+
+        expect(response).toEqual(result);
     });
 });
