@@ -102,7 +102,8 @@ const updateDocument = async ({
     ownerId,
     title,
     content ,
-    expectedRevision
+    expectedRevision ,
+    operationId
 }) => {
     validateDocumentId({ documentId });
 
@@ -129,6 +130,17 @@ const updateDocument = async ({
             "A valid expectedRevision is required",
             400
         );
+    }
+
+    if (
+        operationId !== undefined &&
+        operationId !== null &&
+        (
+            typeof operationId !== "string" ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)
+        )
+    ) {
+        throw new AppError("Invalid operation ID", 400);
     }
 
     const client = await pool.connect();
@@ -167,10 +179,65 @@ const updateDocument = async ({
             }
         }
 
+        let requestPayload = null;
+
+        if (operationId) {
+            requestPayload = {
+                title: validTitle,
+                content: validContent,
+                expectedRevision
+            };
+
+            const existingOperation =
+                await documentModel.findDocumentOperation({
+                    documentId,
+                    userId: ownerId,
+                    operationId,
+                    requestPayload,
+                    client
+                });
+
+            if (existingOperation) {
+                if (!existingOperation.payload_matches) {
+                    throw new AppError(
+                        "Operation ID has already been used with a different payload",
+                        409
+                    );
+                }
+
+                if (!existingOperation.response_payload) {
+                    throw new AppError(
+                        "Stored operation response is unavailable",
+                        500
+                    );
+                }
+
+                await client.query("COMMIT");
+
+                return {
+                    document: existingOperation.response_payload,
+                    duplicate: true
+                };
+            }
+        }
+
         if (document.revision !== expectedRevision) {
             throw new AppError(
                 "Document has been modified. Fetch the latest version before updating.",
                 409
+            );
+        }
+
+        if (
+            operationId !== undefined &&
+            (
+                typeof operationId !== "string" ||
+                !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)
+            )
+        ) {
+            throw new AppError(
+                "A valid operationId UUID is required",
+                400
             );
         }
 
@@ -203,12 +270,27 @@ const updateDocument = async ({
             throw new AppError(
                 "Document update failed. Please retry.",
                 409
-        );
-}
+        )};
+
+        if (operationId) {
+            await documentModel.createDocumentOperation({
+                documentId,
+                userId: ownerId,
+                operationId,
+                requestPayload,
+                responsePayload: updatedDocument,
+                client
+            });
+        }
 
         await client.query("COMMIT");
 
-        return updatedDocument;
+        return operationId
+        ? {
+            document: updatedDocument,
+            duplicate: false
+        }
+        : updatedDocument;
 
         } catch (error) {
         try {

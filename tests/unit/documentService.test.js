@@ -10,7 +10,9 @@ const {
 
 jest.mock("../../src/modules/documents/Models/documentModel", () => ({
     findDocumentByIdForUpdate: jest.fn(),
-    updateDocument: jest.fn()
+    updateDocument: jest.fn(),
+    findDocumentOperation: jest.fn(),
+    createDocumentOperation: jest.fn()
 }));
 
 jest.mock("../../src/modules/documentShares/Models/documentShareModel", () => ({
@@ -83,11 +85,13 @@ describe("Document Service - Optimistic Concurrency Control", () => {
         });
 
         documentShareModel.findDocumentShare.mockResolvedValue(null);
-    });
 
-    // --------------------------------------------------
-    // SUCCESSFUL UPDATE
-    // --------------------------------------------------
+        documentModel.findDocumentOperation.mockResolvedValue(null);
+
+        documentModel.createDocumentOperation.mockResolvedValue({
+            id: "operation-1"
+        });
+    });
 
     describe("Successful update", () => {
         test("updates a document when expectedRevision matches", async () => {
@@ -338,9 +342,153 @@ describe("Document Service - Optimistic Concurrency Control", () => {
         });
     });
 
-    // --------------------------------------------------
-    // TRANSACTION ROLLBACK
-    // --------------------------------------------------
+
+    describe("Idempotency", () => {
+        const operationId = "550e8400-e29b-41d4-a716-446655440000";
+
+        const idempotentPayload = {
+            ...validPayload,
+            operationId
+        };
+
+        test("processes a new operation and stores its response", async () => {
+            const result = await updateDocument(idempotentPayload);
+
+            expect(result).toEqual({
+                document: updatedDocument,
+                duplicate: false
+            });
+
+            expect(documentModel.findDocumentOperation)
+                .toHaveBeenCalledWith({
+                    documentId: "123",
+                    userId: "owner-123",
+                    operationId,
+                    requestPayload: {
+                        title: "Updated Document",
+                        content: null,
+                        expectedRevision: 4
+                    },
+                    client
+                });
+
+            expect(documentModel.createDocumentOperation)
+                .toHaveBeenCalledWith({
+                    documentId: "123",
+                    userId: "owner-123",
+                    operationId,
+                    requestPayload: {
+                        title: "Updated Document",
+                        content: null,
+                        expectedRevision: 4
+                    },
+                    responsePayload: updatedDocument,
+                    client
+                });
+
+            expect(client.query).toHaveBeenCalledWith("COMMIT");
+        });
+
+        test("returns the original response for a duplicate operation", async () => {
+            documentModel.findDocumentOperation.mockResolvedValue({
+                payload_matches: true,
+                response_payload: updatedDocument
+            });
+
+            const result = await updateDocument(idempotentPayload);
+
+            expect(result).toEqual({
+                document: updatedDocument,
+                duplicate: true
+            });
+
+            expect(documentModel.updateDocument)
+                .not.toHaveBeenCalled();
+
+            expect(documentVersionModel.createVersion)
+                .not.toHaveBeenCalled();
+
+            expect(documentModel.createDocumentOperation)
+                .not.toHaveBeenCalled();
+
+            expect(client.query).toHaveBeenCalledWith("COMMIT");
+        });
+
+        test("rejects reuse of an operation ID with a different payload", async () => {
+            documentModel.findDocumentOperation.mockResolvedValue({
+                payload_matches: false,
+                response_payload: updatedDocument
+            });
+
+            await expect(
+                updateDocument({
+                    ...idempotentPayload,
+                    title: "Different payload"
+                })
+            ).rejects.toMatchObject({
+                statusCode: 409
+            });
+
+            expect(documentModel.updateDocument)
+                .not.toHaveBeenCalled();
+
+            expect(documentVersionModel.createVersion)
+                .not.toHaveBeenCalled();
+
+            expect(client.query).toHaveBeenCalledWith("ROLLBACK");
+        });
+
+        test("checks duplicate operation before validating revision", async () => {
+            documentModel.findDocumentOperation.mockResolvedValue({
+                payload_matches: true,
+                response_payload: updatedDocument
+            });
+
+            const result = await updateDocument({
+                ...idempotentPayload,
+                expectedRevision: 3
+            });
+
+            expect(result.duplicate).toBe(true);
+
+            expect(documentModel.updateDocument)
+                .not.toHaveBeenCalled();
+
+            expect(documentVersionModel.createVersion)
+                .not.toHaveBeenCalled();
+        });
+
+        test("rejects an invalid operation ID", async () => {
+            await expect(
+                updateDocument({
+                    ...validPayload,
+                    operationId: "invalid-operation-id"
+                })
+            ).rejects.toMatchObject({
+                statusCode: 400
+            });
+
+            expect(pool.connect).not.toHaveBeenCalled();
+        });
+
+        test("rolls back when storing the operation fails", async () => {
+            documentModel.createDocumentOperation.mockRejectedValue(
+                new Error("Operation storage failed")
+            );
+
+            await expect(
+                updateDocument(idempotentPayload)
+            ).rejects.toThrow("Operation storage failed");
+
+            expect(documentModel.updateDocument)
+                .toHaveBeenCalledTimes(1);
+
+            expect(client.query).toHaveBeenCalledWith("ROLLBACK");
+
+            expect(client.release).toHaveBeenCalledTimes(1);
+        });
+    });
+
 
     describe("Transaction rollback", () => {
         test("rolls back when snapshot creation fails", async () => {
