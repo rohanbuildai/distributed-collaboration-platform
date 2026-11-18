@@ -562,5 +562,77 @@ describe("Document Rooms and Real-Time Collaboration", () => {
                 client.disconnect();
             }
         });
+
+        
+        test("should return the latest document revision when a user rejoins after disconnecting", async () => {
+            collaborationService.getDocumentAccess
+                .mockResolvedValueOnce({
+                    document: {
+                        id: "123",
+                        title: "Test Document",
+                        content: { type: "doc", content: [] },
+                        revision: 5
+                    },
+                    permission: "editor"
+                })
+                .mockResolvedValueOnce({
+                    document: {
+                        id: "123",
+                        title: "Updated Document",
+                        content: { type: "doc", content: [] },
+                        revision: 6
+                    },
+                    permission: "editor"
+                });
+
+            const firstClient = connectClient(createToken("editor-123"));
+            let reconnectClient;
+
+            try {
+        
+                await new Promise((resolve, reject) => {
+                    firstClient.once("connect", resolve);
+                    firstClient.once("connect_error", reject);
+                });
+
+                const firstResponse = await emitWithAck(
+                    firstClient,
+                    "document:join",
+                    { documentId: "123" }
+                );
+
+                expect(firstResponse.success).toBe(true);
+                expect(firstResponse.data.document.revision).toBe(5);
+
+                firstClient.disconnect();
+
+                reconnectClient = connectClient(createToken("editor-123"));
+
+                await new Promise((resolve, reject) => {
+                    reconnectClient.once("connect", resolve);
+                    reconnectClient.once("connect_error", reject);
+                });
+
+                const recoveryResponse = await emitWithAck(
+                    reconnectClient,
+                    "document:join",
+                    { documentId: "123" }
+                );
+
+                expect(recoveryResponse.success).toBe(true);
+                expect(recoveryResponse.data.document.revision).toBe(6);
+                expect(recoveryResponse.data.document.title)
+                    .toBe("Updated Document");
+
+                expect(
+                    collaborationService.getDocumentAccess
+                ).toHaveBeenCalledTimes(2);
+
+            } finally {
+                firstClient.disconnect();
+                reconnectClient?.disconnect();
+            }
+        });
+
     });
 });

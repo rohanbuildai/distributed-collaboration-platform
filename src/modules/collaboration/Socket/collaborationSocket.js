@@ -3,15 +3,14 @@ const collaborationService = require(
     "../Services/collaborationService"
 );
 
+const presenceService = require("../Services/presenceService")
+
 const getRoomName = (documentId) => {
     return `document:${documentId}`;
 };
 
-const removeUnauthorizedSockets = async (
-    io,
-    room,
-    documentId
-) => {
+
+const removeUnauthorizedSockets = async (io, room, documentId) => {
     const connectedSockets = await io.in(room).fetchSockets();
 
     await Promise.all(
@@ -23,10 +22,24 @@ const removeUnauthorizedSockets = async (
                 });
             } catch (error) {
                 await connectedSocket.leave(room);
+
+                const result =
+                    presenceService.removeSocketFromDocument({
+                        documentId,
+                        userId: connectedSocket.data.userId,
+                        socketId: connectedSocket.id
+                    });
+
+                if (result.isLastConnection) {
+                    io.to(room).emit("user:left", {
+                        userId: connectedSocket.data.userId
+                    });
+                }
             }
         })
     );
 };
+
 
 const registerCollaborationSocket = (io) => {
     io.on("connection", (socket) => {
@@ -58,16 +71,36 @@ const registerCollaborationSocket = (io) => {
 
                 const room = getRoomName(documentId);
 
+                
                 await socket.join(room);
+
+                const existingUsers =
+                    presenceService.getDocumentPresence(documentId)
+                        .filter((userId) => userId !== String(socket.user.id));
+
+                const presenceResult =
+                    presenceService.addSocketToDocument({
+                        documentId,
+                        userId: socket.user.id,
+                        socketId: socket.id
+                    });
+
+                if (presenceResult.isFirstConnection) {
+                    socket.to(room).emit("user:joined", {
+                        userId: socket.user.id
+                    });
+                }
 
                 return ack({
                     success: true,
                     message: "Joined document room",
                     data: {
                         document,
-                        permission
+                        permission,
+                        presence: existingUsers
                     }
                 });
+
             } catch (error) {
                 return ack({
                     success: false,
@@ -94,12 +127,28 @@ const registerCollaborationSocket = (io) => {
                     });
                 }
 
-                await socket.leave(getRoomName(documentId));
+                
+                const room = getRoomName(documentId);
+
+                await socket.leave(room);
+
+                const result = presenceService.removeSocketFromDocument({
+                    documentId,
+                    userId: socket.user.id,
+                    socketId: socket.id
+                });
+
+                if (result.isLastConnection) {
+                    socket.to(room).emit("user:left", {
+                        userId: socket.user.id
+                    });
+                }
 
                 return ack({
                     success: true,
                     message: "Left document room"
                 });
+
             } catch (error) {
                 return ack({
                     success: false,
@@ -254,11 +303,29 @@ const registerCollaborationSocket = (io) => {
             }
         });
 
-        socket.on("disconnect", (reason) => {
-            console.log(
-                `Socket disconnected: ${socket.user.id}, reason: ${reason}`
-            );
+        
+        socket.on("disconnecting", () => {
+            for (const room of socket.rooms) {
+                if (!room.startsWith("document:")) {
+                    continue;
+                }
+
+                const documentId = room.slice("document:".length);
+
+                const result = presenceService.removeSocketFromDocument({
+                    documentId,
+                    userId: socket.user.id,
+                    socketId: socket.id
+                });
+
+                if (result.isLastConnection) {
+                    socket.to(room).emit("user:left", {
+                        userId: socket.user.id
+                    });
+                }
+            }
         });
+
     });
 };
 
