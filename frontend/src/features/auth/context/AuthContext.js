@@ -16,6 +16,7 @@ import {
     logoutUser,
     getCurrentUser,
 } from "../authService";
+import { disconnectSocket } from "@/services/socketService";
 
 const AuthContext = createContext(null);
 
@@ -59,22 +60,28 @@ const AuthProvider = ({ children }) => {
     }, []);
 
     const login = useCallback(async (credentials) => {
-        await loginUser(credentials);
+   
+    disconnectSocket();
 
-        const response = await getCurrentUser();
+    await loginUser(credentials);
 
-        const currentUser = {
-            id: response.userId,
-        };
+    const response = await getCurrentUser();
 
-        setUser(currentUser);
-        setAuthError(null);
+    const currentUser = {
+        id: response.userId,
+    };
 
-        return currentUser;
-    }, []);
+    setUser(currentUser);
+    setAuthError(null);
+
+    return currentUser;
+}, []);
 
     const logout = useCallback(async () => {
         await logoutUser();
+
+        
+        disconnectSocket();
 
         setUser(null);
         setAuthError(null);
