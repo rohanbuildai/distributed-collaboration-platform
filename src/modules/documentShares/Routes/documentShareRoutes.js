@@ -33,4 +33,13 @@ router.delete(
     documentShareController.revokeDocumentShare
 );
 
+
+router.get(
+    "/:id/shares",
+    authenticate,
+    shareDocumentLimiter,
+    documentShareController.getDocumentShares
+);
+
+
 module.exports = router;

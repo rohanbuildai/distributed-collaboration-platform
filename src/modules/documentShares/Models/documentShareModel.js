@@ -130,10 +130,31 @@ const deleteDocumentShare = async ({
     return result.rows[0] || null;
 };
 
+
+const findDocumentShares = async ({ documentId }) => {
+    const query = `
+        SELECT
+            id,
+            document_id,
+            shared_with_user_id,
+            permission,
+            created_at
+        FROM document_shares
+        WHERE document_id = $1
+        ORDER BY created_at DESC, id DESC;
+    `;
+
+    const result = await pool.query(query, [documentId]);
+
+    return result.rows;
+};
+
+
 module.exports = {
     createDocumentShare ,
     findDocumentShare ,
     findSharedDocuments ,
     updateDocumentSharePermission ,
-    deleteDocumentShare
+    deleteDocumentShare ,
+    findDocumentShares
 }

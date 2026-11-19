@@ -60,8 +60,27 @@ const revokeDocumentShare = async (req, res, next) => {
 };
 
 
+const getDocumentShares = async (req, res, next) => {
+    try {
+        const shares = await documentShareService.getDocumentShares({
+            documentId: req.params.id,
+            ownerId: req.user.id,
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: shares,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+
 module.exports = {
     createDocumentShare ,
     updateDocumentSharePermission ,
-    revokeDocumentShare
+    revokeDocumentShare ,
+    getDocumentShares
 };
