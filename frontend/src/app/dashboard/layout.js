@@ -1,17 +1,18 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/features/auth/context/AuthContext";
 
-const DashboardLayout = ({ children }) => {
-    const { user, isLoading } = useAuth();
+const DashboardLayoutContent = ({ children }) => {
     const router = useRouter();
+    const pathname = usePathname();
 
+    const { user, isLoading } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
@@ -21,8 +22,9 @@ const DashboardLayout = ({ children }) => {
     }, [isLoading, user, router]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- closing mobile menu on route change is intentional
         setIsMobileMenuOpen(false);
-    }, [router]);
+    }, [pathname]);
 
     if (isLoading || !user) {
         return (
@@ -95,6 +97,22 @@ const DashboardLayout = ({ children }) => {
                 </main>
             </div>
         </div>
+    );
+};
+
+const DashboardLayout = ({ children }) => {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen items-center justify-center">
+                    <p>Loading dashboard...</p>
+                </div>
+            }
+        >
+            <DashboardLayoutContent>
+                {children}
+            </DashboardLayoutContent>
+        </Suspense>
     );
 };
 

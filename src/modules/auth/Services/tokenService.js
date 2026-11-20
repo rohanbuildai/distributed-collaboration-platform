@@ -6,11 +6,11 @@ const refreshTokenModel = require("../Models/refreshTokenModel");
 const {
     generateRefreshToken,
     hashRefreshToken
-} = require("../../../utils/tokens/refreshTokenUtils");
+} = require("../../../utils/Tokens/refreshTokenUtils");
 
 const {
     generateAccessToken
-} = require("../../../utils/tokens/accessTokenUtils");
+} = require("../../../utils/Tokens/accessTokenUtils");
 
 const refreshAccessToken = async (refreshTokenValue) => {
     if (!refreshTokenValue) {

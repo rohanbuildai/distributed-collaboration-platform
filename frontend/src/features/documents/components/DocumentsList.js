@@ -49,6 +49,7 @@ const DocumentsList = ({ refreshKey }) => {
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state before refetch on refreshKey change
         setDocuments([]);
         setNextCursor(null);
         setHasMore(false);

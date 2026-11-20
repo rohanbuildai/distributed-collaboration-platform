@@ -3,7 +3,7 @@ const authService = require("../Services/authService");
 
 const {
     setAuthCookies
-} = require("../../../utils/tokens/authCookieUtils");
+} = require("../../../utils/Tokens/authCookieUtils");
 
 const registerUser = async (req, res, next) => {
     try {

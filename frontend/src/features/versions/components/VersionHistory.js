@@ -52,6 +52,7 @@ const VersionHistory = ({ documentId, onSelectVersion }) => {
     }, [documentId]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
         fetchVersions();
     }, [fetchVersions]);
 

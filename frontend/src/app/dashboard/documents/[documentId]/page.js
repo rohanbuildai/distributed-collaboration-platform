@@ -68,6 +68,7 @@ const DocumentPage = () => {
     useEffect(() => {
         if (!realtimeDocument) return;
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local state with external realtime document
         setDocument(realtimeDocument);
         setTitle(realtimeDocument.title);
     }, [realtimeDocument]);
