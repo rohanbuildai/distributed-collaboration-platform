@@ -31,36 +31,52 @@ const Header = () => {
     };
 
     return (
-        <header className="min-h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
-            <div>
-                <h2 className="font-semibold text-slate-800">
+        <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
+            {/* Workspace information */}
+            <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-slate-800">
                     Workspace
                 </h2>
+
+                <p className="hidden text-xs text-slate-500 sm:block">
+                    Your collaborative workspace
+                </p>
             </div>
 
-            <div className="flex items-center gap-4">
-                {error && (
-                    <span className="text-sm text-red-600">
-                        {error}
+            {/* User actions */}
+            <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2">
+                    <div
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700"
+                        aria-label="User profile"
+                    >
+                        U
+                    </div>
+
+                    <span className="hidden text-sm font-medium text-slate-700 sm:block">
+                        Welcome
                     </span>
-                )}
-
-                <span className="text-sm text-slate-600">
-                    Welcome
-                </span>
-
-                <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center font-semibold text-slate-700">
-                    U
                 </div>
 
                 <button
+                    type="button"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>
             </div>
+
+            {/* Logout error */}
+            {error && (
+                <div
+                    role="alert"
+                    className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                >
+                    {error}
+                </div>
+            )}
         </header>
     );
 };
