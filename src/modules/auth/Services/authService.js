@@ -3,8 +3,8 @@ const pool = require("../../../config/database") ;
 const crypto = require("crypto");
 
 const authModel = require("../Models/authModel");
-const { generateAccessToken } = require("../../../utils/tokens/accessTokenUtils") ;
-const { generateRefreshToken,hashRefreshToken } = require("../../../utils/tokens/refreshTokenUtils") ;
+const { generateAccessToken } = require("../../../utils/Tokens/accessTokenUtils");
+const { generateRefreshToken, hashRefreshToken } = require("../../../utils/Tokens/refreshTokenUtils");
 const refreshTokenModel = require("../Models/refreshTokenModel") ;
 const AppError = require("../../../utils/errors/appError");
 
