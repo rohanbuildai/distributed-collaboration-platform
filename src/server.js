@@ -8,6 +8,7 @@ const app = require("./app");
 const pool = require("./config/database");
 
 const { Server } = require("socket.io");
+const corsOptions = require("./config/corsOptions");
 
 const socketAuthMiddleware = require(
     "./modules/collaboration/Middleware/socketAuthMiddleware"
@@ -25,10 +26,7 @@ const server = app.listen(PORT, () => {
 
 
 const io = new Server(server, {
-    cors: {
-        origin: "http://localhost:3001",
-        credentials: true,
-    },
+    cors: corsOptions,
 });
 
 io.use(socketAuthMiddleware);
