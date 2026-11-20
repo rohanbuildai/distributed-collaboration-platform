@@ -105,6 +105,7 @@ const useDocumentCollaboration = (documentId) => {
 
         const socketInstance = connectSocket();
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- storing socket instance from external system
         setSocket(socketInstance);
 
         const handleConnect = () => {
