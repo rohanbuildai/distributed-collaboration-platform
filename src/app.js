@@ -11,7 +11,11 @@ const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
 
-app.use(helmet());
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
