@@ -4,7 +4,7 @@ const tokenService = require("../Services/tokenService");
 const {
     setAuthCookies,
     clearAuthCookies
-} = require("../../../utils/tokens/authCookieUtils");
+} = require("../../../utils/Tokens/authCookieUtils");
 
 const refreshAccessToken = async (req, res, next) => {
     try {
