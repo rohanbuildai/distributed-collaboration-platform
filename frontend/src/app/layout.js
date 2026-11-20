@@ -1,4 +1,5 @@
 
+import "./tailwind.css";
 import "./global.css";
 
 import { AuthProvider } from "@/features/auth/context/AuthContext";
